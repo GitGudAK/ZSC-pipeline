@@ -33,3 +33,14 @@ To deploy the pipeline as a Google Cloud Run Job (which executes in the cloud an
 ```bash
 gcloud run jobs execute anime-pipeline-job --region us-central1
 ```
+
+## Web UI (Phase 2 Frontend)
+The project includes a premium, modern web interface built with Next.js and TailwindCSS.
+
+To run the web UI locally:
+```bash
+cd apps/web
+npm install
+npm run dev
+```
+Then open `http://localhost:3000` in your browser. The UI includes the Story Input, Storyboard Editor, and Generation Queue dashboard.
