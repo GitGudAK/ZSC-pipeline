@@ -4,6 +4,7 @@ from typing import List, Optional
 from google import genai
 from google.genai import types
 from src.utils.gcp_client import GCPClient
+from src.utils.storage import StorageManager
 from src.models.episode import Shot
 
 logger = logging.getLogger(__name__)
@@ -17,8 +18,7 @@ class KeyframeGenerator:
         provider = config.get("generation", {}).get("keyframe", {}).get("provider", "nano_banana")
         self.model_id = gcp_client.get_model(provider)
         
-        self.output_dir = os.path.join(config.get("pipeline", {}).get("output_dir", "./output"), "keyframes")
-        os.makedirs(self.output_dir, exist_ok=True)
+        self.storage = StorageManager(config)
         
     def generate(self, shot: Shot) -> str:
         if not shot.image_prompt:
@@ -34,24 +34,21 @@ class KeyframeGenerator:
                 config={"response_modalities": ["IMAGE"]}
             )
             
-            # Save the image
-            # Different models might return parts differently. Assuming proper mapping in SDK
+            # Save the image using StorageManager
             if response.parts and len(response.parts) > 0 and hasattr(response.parts[0], 'image'):
                 image = response.parts[0].image
-                output_path = os.path.join(self.output_dir, f"{shot.id}.jpg")
+                filename = f"keyframes/{shot.id}.jpg"
                 
-                # Image typically has a bytes attribute or save method
-                if hasattr(image, 'save'):
-                    image.save(output_path)
-                elif hasattr(image, 'image_bytes'):
-                    with open(output_path, 'wb') as f:
-                        f.write(image.image_bytes)
+                if hasattr(image, 'image_bytes'):
+                    saved_path = self.storage.write_bytes(image.image_bytes, filename)
                 elif hasattr(image, '_bytes'):
-                    with open(output_path, 'wb') as f:
-                        f.write(image._bytes)
-                        
-                shot.keyframe_path = output_path
-                logger.info(f"Saved keyframe for shot {shot.id} to {output_path}")
+                    saved_path = self.storage.write_bytes(image._bytes, filename)
+                else: 
+                     logger.warning("Could not extract bytes from image part")
+                     saved_path = f"error_{shot.id}.jpg"
+                     
+                shot.keyframe_path = saved_path
+                logger.info(f"Saved keyframe for shot {shot.id} to {saved_path}")
             else:
                 logger.error(f"No image found in response for shot {shot.id}")
                 

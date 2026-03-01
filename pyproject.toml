@@ -9,7 +9,8 @@ dependencies = [
     "click",
     "ffmpeg-python",
     "aiohttp",
-    "pyyaml"
+    "pyyaml",
+    "google-cloud-storage"
 ]
 
 [project.scripts]

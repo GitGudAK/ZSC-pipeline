@@ -15,8 +15,21 @@ It takes a written story and converts it into a 20-minute anime episode through 
 3. Set your elevenlabs and other extra API keys
 4. Make sure you have python 3.11+ and install the requirements via `pip install -e .`
 
-## Usage
+## Local Usage
 Run the pipeline via the CLI entrypoint:
 ```bash
 python -m src.main run --config config/example_episode.yaml --story story.txt
+```
+
+## Cloud Run Deployment (100% Cloud Native)
+To deploy the pipeline as a Google Cloud Run Job (which executes in the cloud and saves everything to Google Cloud Storage instead of your local disk):
+
+1. Set `gcs_bucket: "your-bucket-name"` in `config/default_config.yaml`
+2. Run the deployment script:
+```bash
+./scripts/deploy_cloud_run.sh
+```
+3. To execute the pipeline in the cloud:
+```bash
+gcloud run jobs execute anime-pipeline-job --region us-central1
 ```

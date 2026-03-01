@@ -12,6 +12,7 @@ from src.story.prompt_writer import PromptWriter
 from src.generation.keyframe_gen import KeyframeGenerator
 from src.generation.video_gen import VideoGenerator
 from src.assembly.stitcher import Stitcher
+from src.utils.storage import StorageManager
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -33,14 +34,14 @@ def load_config(config_path: str) -> dict:
                     base_config[k] = v
     return base_config
 
-def save_state(episode: Episode, path: str):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'w') as f:
-        json.dump(episode.model_dump(mode='json'), f, indent=2)
+def save_state(storage: StorageManager, episode: Episode, path: str):
+    storage.write_json(episode.model_dump(mode='json'), path)
 
-def load_state(path: str) -> Episode:
-    with open(path) as f:
-        return Episode.model_validate(json.load(f))
+def load_state(storage: StorageManager, path: str) -> Episode:
+    data = storage.read_json(path)
+    if data:
+        return Episode.model_validate(data)
+    raise FileNotFoundError(f"State file not found at {path}")
 
 @click.group()
 def cli():
@@ -55,6 +56,7 @@ def run(config: str, story: str):
     logger.info("Starting Full Pipeline Run")
     cfg = load_config(config)
     gcp_client = GCPClient(cfg)
+    storage = StorageManager(cfg)
     
     with open(story, "r") as f:
         story_text = f.read()
@@ -78,19 +80,19 @@ def run(config: str, story: str):
     
     prompt_writer = PromptWriter(cfg)
     episode.scenes = prompt_writer.write_prompts(episode.scenes, episode.characters)
-    save_state(episode, state_file)
+    save_state(storage, episode, state_file)
     
     kf_gen = KeyframeGenerator(gcp_client, cfg)
     for scene in episode.scenes:
         for shot in scene.shots:
             kf_gen.generate(shot)
-            save_state(episode, state_file)
+            save_state(storage, episode, state_file)
             
     vid_gen = VideoGenerator(gcp_client, cfg)
     for scene in episode.scenes:
         for shot in scene.shots:
             vid_gen.generate_from_keyframe(shot)
-            save_state(episode, state_file)
+            save_state(storage, episode, state_file)
             
     stitcher = Stitcher(cfg)
     final_video = stitcher.assemble(episode)
