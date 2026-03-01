@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Sparkles, Wand2, UploadCloud, X, FileImage, FileVideo } from 'lucide-react';
+import { Sparkles, Wand2, UploadCloud, X, FileImage, FileVideo, Youtube } from 'lucide-react';
 
 export default function Home() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [styleRefs, setStyleRefs] = useState<File[]>([]);
+  const [youtubeUrls, setYoutubeUrls] = useState<string[]>([]);
+  const [youtubeInput, setYoutubeInput] = useState("");
   const [story, setStory] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -28,6 +30,19 @@ export default function Home() {
     setStyleRefs(prev => prev.filter((_, i) => i !== idx));
   };
 
+  const handleAddYoutubeUrl = () => {
+    if (youtubeInput && (youtubeInput.includes("youtube.com") || youtubeInput.includes("youtu.be"))) {
+      setYoutubeUrls(prev => [...prev, youtubeInput]);
+      setYoutubeInput("");
+    } else {
+      alert("Please enter a valid YouTube URL");
+    }
+  };
+
+  const removeYoutubeUrl = (idx: number) => {
+    setYoutubeUrls(prev => prev.filter((_, i) => i !== idx));
+  };
+
   const handleBeginPipeline = async () => {
     if (!story) {
       alert("Please enter a story before generating.");
@@ -40,6 +55,7 @@ export default function Home() {
       const formData = new FormData();
       formData.append("story", story);
       styleRefs.forEach((file) => formData.append("styleRefs", file));
+      youtubeUrls.forEach((url) => formData.append("youtubeUrls", url));
 
       const res = await fetch("/api/pipeline", {
         method: "POST",
@@ -105,6 +121,27 @@ export default function Home() {
           </div>
 
           <div className="pl-10 space-y-4">
+            {/* YouTube Input */}
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                <input
+                  type="text"
+                  value={youtubeInput}
+                  onChange={(e) => setYoutubeInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddYoutubeUrl()}
+                  placeholder="Paste YouTube Video URL for style..."
+                  className="w-full bg-black/50 border border-white/10 rounded-lg py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all placeholder:text-white/30"
+                />
+              </div>
+              <button
+                onClick={handleAddYoutubeUrl}
+                className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                Add
+              </button>
+            </div>
+
             <div
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDrop}
@@ -124,10 +161,23 @@ export default function Home() {
               <p className="text-xs text-white/40 mt-1">or click to browse from your computer</p>
             </div>
 
-            {styleRefs.length > 0 && (
+            {(styleRefs.length > 0 || youtubeUrls.length > 0) && (
               <div className="flex flex-wrap gap-3 mt-4">
+                {youtubeUrls.map((url, idx) => (
+                  <div key={`yt-${idx}`} className="relative flex items-center gap-2 bg-red-500/10 border border-red-500/30 rounded-lg py-2 px-3 pr-8">
+                    <Youtube className="w-4 h-4 text-red-500" />
+                    <span className="text-xs font-medium text-white/80 max-w-[150px] truncate">{url}</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeYoutubeUrl(idx); }}
+                      className="absolute right-2 text-white/40 hover:text-white"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+
                 {styleRefs.map((file, idx) => (
-                  <div key={idx} className="relative flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg py-2 px-3 pr-8">
+                  <div key={`file-${idx}`} className="relative flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg py-2 px-3 pr-8">
                     {file.type.startsWith('video') ? <FileVideo className="w-4 h-4 text-primary" /> : <FileImage className="w-4 h-4 text-blue-400" />}
                     <span className="text-xs font-medium text-white/80 max-w-[150px] truncate">{file.name}</span>
                     <button

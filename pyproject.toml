@@ -10,7 +10,8 @@ dependencies = [
     "ffmpeg-python",
     "aiohttp",
     "pyyaml",
-    "google-cloud-storage"
+    "google-cloud-storage",
+    "yt-dlp"
 ]
 
 [project.scripts]

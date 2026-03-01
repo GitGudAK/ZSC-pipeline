@@ -4,6 +4,8 @@ from google.genai import types
 from src.utils.gcp_client import GCPClient
 from src.utils.storage import StorageManager
 import time
+import subprocess
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +21,36 @@ class StyleAnalyzer:
         # Determine fallback default style if analysis fails
         self.default_style = config.get("style", {}).get("guide", "Modern anime style, cinematic lighting.")
         
-    def _upload_media(self, uri: str):
-        """Downloads from GCS if necessary, and uploads to Gemini Files API."""
+    def _download_youtube(self, url: str):
+        """Downloads the first 60 seconds of a YouTube video using yt-dlp."""
+        out_path = f"/tmp/yt_style_{int(time.time())}.mp4"
+        logger.info(f"Downloading YouTube video {url} for style analysis...")
         try:
-            # Stage file locally to upload
-            local_path = self.storage.download_to_local(uri, f"/tmp/style_ref_{time.time()}_{uri.split('/')[-1]}")
+            cmd = [
+                "yt-dlp",
+                "-f", "worst[ext=mp4]/mp4",  # Keep it small for faster Gemini processing
+                "--download-sections", "*0-60", # Download only the first 60 seconds
+                "-o", out_path,
+                url
+            ]
+            subprocess.run(cmd, check=True, capture_output=True, text=True)
+            if os.path.exists(out_path):
+                return out_path
+            return None
+        except Exception as e:
+            logger.error(f"Failed to download YouTube video: {e}")
+            return None
+
+    def _upload_media(self, uri: str):
+        """Downloads from GCS or YouTube if necessary, and uploads to Gemini Files API."""
+        try:
+            local_path = None
+            if "youtube.com" in uri or "youtu.be" in uri:
+                local_path = self._download_youtube(uri)
+            else:
+                # Stage file locally to upload
+                local_path = self.storage.download_to_local(uri, f"/tmp/style_ref_{time.time()}_{uri.split('/')[-1]}")
+            
             if not local_path:
                 logger.error(f"Could not stage file {uri} for upload to Gemini.")
                 return None
