@@ -1,0 +1,18 @@
+episode:
+  title: "The Last Starkeeper"
+  episode_number: 1
+  synopsis: "In a world where stars are dying, a young girl discovers she can reignite them — but each star she saves costs a piece of her memory."
+
+characters:
+  - name: "Hikari"
+    description: "16-year-old girl with silver-white hair that glows faintly blue at the tips. Large violet eyes. Wears a dark blue school uniform with a constellation pin. Slender build, gentle expression that hardens with determination."
+    voice_id: null  # Set after creating ElevenLabs voice
+    color_palette: ["#C0C0FF", "#1A1A4E", "#E8E8FF", "#6B4FA0"]
+
+  - name: "Yoru"
+    description: "Mysterious boy, appears 17. Black hair that seems to absorb light, with one red eye and one gold eye. Wears a long dark coat with star-map patterns. Tall, sharp features, melancholic expression."
+    voice_id: null
+    color_palette: ["#0A0A0A", "#CC0000", "#FFD700", "#1C1C3A"]
+
+style:
+  guide: "Modern anime, Makoto Shinkai-inspired backgrounds with rich sky gradients and volumetric lighting. Character designs are clean with expressive eyes. Night scenes are deep blue with star particle effects. Magic effects glow with soft bloom. Emotional scenes use shallow depth of field."

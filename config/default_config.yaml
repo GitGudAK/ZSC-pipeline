@@ -1,0 +1,84 @@
+# Pipeline Configuration
+pipeline:
+  project_name: "my-anime"
+  output_dir: "./output"
+  gcs_bucket: "my-anime-pipeline"  # Optional: Google Cloud Storage bucket
+  resume_enabled: true
+  state_file: "./output/pipeline_state.json"
+
+# Google Cloud — User has Google AI Ultra subscription (highest tier)
+gcp:
+  project_id: "${GCP_PROJECT_ID}"
+  region: "us-central1"
+  ultra_tier: true                       # Enables highest rate limits and model access
+  # Model version policy: "latest" = auto-resolve at runtime, or pin a specific version
+  gemini_model_decompose: "latest"       # Resolves to gemini-3.1-pro or newest available
+  gemini_model_qa: "latest-flash"        # Resolves to gemini-3-flash or newest available
+  gemini_model_deep_think: "latest-pro"  # For complex narrative reasoning
+  imagen_model: "latest"                 # Resolves to imagen-4 or newest available
+  veo_model: "latest"                    # Resolves to veo-3.1-generate-preview or newest
+  nano_banana_model: "latest"            # Resolves to gemini-2.5-flash-image or newest
+  # Fallback versions (used if auto-resolve fails)
+  fallback_models:
+    gemini_pro: "gemini-3.1-pro"
+    gemini_flash: "gemini-3-flash"  
+    imagen: "imagen-3.0-generate-002"
+    veo: "veo-3.1-generate-preview"
+    nano_banana: "gemini-2.5-flash-image"
+
+# Episode defaults
+episode:
+  target_duration_minutes: 20
+  target_shot_count: 120
+  default_shot_duration: 5  # seconds
+  fps: 24
+  resolution: "1080p"  # 720p, 1080p, 4k
+  aspect_ratio: "16:9"
+
+# Style
+style:
+  guide: "Modern anime style, vibrant colors, clean linework, expressive eyes, dynamic lighting. Similar to Makoto Shinkai's color palette with Studio Trigger's energy."
+  negative_prompt: "photorealistic, 3D render, western cartoon, blurry, low quality"
+
+# Generation settings
+generation:
+  keyframe:
+    provider: "nano_banana"  # "nano_banana" or "imagen3"
+    batch_size: 10
+    retry_count: 3
+  video:
+    provider: "veo"  # "veo" or "hailuo"
+    use_scene_extension: true
+    use_reference_images: true
+    max_reference_images: 3
+    batch_size: 5
+    retry_count: 3
+  rate_limits:
+    # Google AI Ultra tier — highest rate limits available
+    # These are generous defaults; adjust based on actual Ultra quotas
+    veo_requests_per_minute: 15
+    imagen_requests_per_minute: 30
+    gemini_requests_per_minute: 60
+
+# Audio
+audio:
+  voice_provider: "elevenlabs"  # "elevenlabs" or "google_tts"
+  elevenlabs_api_key: "${ELEVENLABS_API_KEY}"
+  music_provider: "lyria"       # "lyria" (Google Lyria 3, Ultra tier) or "suno" or "manual"
+  music_track: null              # Path to manual background music file, or null to auto-generate
+  dialogue_volume: 1.0
+  music_volume: 0.3
+
+# Quality
+quality:
+  auto_review: true
+  qa_threshold: 0.6  # Minimum score to auto-approve
+  human_review_threshold: 0.8  # Below this, flag for human review
+  max_regeneration_attempts: 3
+
+# Hailuo (optional)
+hailuo:
+  enabled: false
+  api_key: "${HAILUO_API_KEY}"
+  model: "hailuo-2.3"
+  use_for_tags: ["action", "fight", "dance", "highly_stylized"]

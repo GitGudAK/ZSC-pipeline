@@ -1,0 +1,5 @@
+{style_guide}
+{character_descriptions}
+{shot_description}
+Location: {location}, Time: {time_of_day}, Mood: {mood}
+Additional instructions: create a single keyframe image matching this description.

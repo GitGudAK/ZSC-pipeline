@@ -1,0 +1,5 @@
+{style_guide}
+{character_descriptions}
+{shot_description}
+Camera Movement: {camera_movement}
+Shot Type: {shot_type}

@@ -1,0 +1,16 @@
+[project]
+name = "anime-pipeline"
+version = "0.1.0"
+description = "AI-powered anime production pipeline"
+requires-python = ">=3.11"
+dependencies = [
+    "google-genai",
+    "pydantic>=2.0.0",
+    "click",
+    "ffmpeg-python",
+    "aiohttp",
+    "pyyaml"
+]
+
+[project.scripts]
+anime-pipeline = "src.main:cli"

@@ -1,0 +1,2 @@
+Refine the following scene into precise shot specifications with exact camera directions and timing.
+{scene_json}
