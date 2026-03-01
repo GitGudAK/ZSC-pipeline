@@ -13,6 +13,7 @@ from src.generation.keyframe_gen import KeyframeGenerator
 from src.generation.video_gen import VideoGenerator
 from src.assembly.stitcher import Stitcher
 from src.utils.storage import StorageManager
+from src.story.style_analyzer import StyleAnalyzer
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -51,7 +52,8 @@ def cli():
 @cli.command()
 @click.option("--config", required=True, help="Path to episode config YAML")
 @click.option("--story", required=True, help="Path to story text file")
-def run(config: str, story: str):
+@click.option("--style-refs", default=None, help="Comma-separated list of image/video style references")
+def run(config: str, story: str, style_refs: str):
     """Run full pipeline end-to-end"""
     logger.info("Starting Full Pipeline Run")
     cfg = load_config(config)
@@ -64,13 +66,23 @@ def run(config: str, story: str):
     ep_data = cfg.get("episode", {})
     chars_data = cfg.get("characters", [])
     
+    # Visual Style Analysis (Phase 3)
+    refs_list = [r.strip() for r in style_refs.split(",")] if style_refs else []
+    
+    if refs_list:
+        analyzer = StyleAnalyzer(gcp_client, cfg)
+        unified_style = analyzer.synthesize_style(refs_list)
+        logger.info(f"Synthesized dynamic style guide from references.")
+    else:
+        unified_style = cfg.get("style", {}).get("guide", "")
+    
     episode = Episode(
         title=ep_data.get("title", "Unknown"),
         episode_number=ep_data.get("episode_number", 1),
         total_duration_target=ep_data.get("target_duration_minutes", 20.0),
         synopsis=ep_data.get("synopsis", ""),
         characters=chars_data,
-        style_guide=cfg.get("style", {}).get("guide", "")
+        style_guide=unified_style
     )
     
     state_file = cfg.get("pipeline", {}).get("state_file", "output/pipeline_state.json")
