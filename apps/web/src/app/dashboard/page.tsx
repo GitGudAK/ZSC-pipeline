@@ -14,7 +14,8 @@ const MOCK_JOBS = [
             { id: "shot_003", state: "active", type: "Video" },
             { id: "shot_004", state: "queued", type: "Keyframe" },
             { id: "shot_005", state: "queued", type: "Keyframe" },
-        ]
+        ],
+        style_guide: "This project features a gritty, 80s cyberpunk aesthetic heavily inspired by 'Akira'. Colors should revolve around deep neon reds, cyan, and stark blacks to emphasize urban decay. Lighting must dramatically use chiaroscuro, with bright rim lighting against rain-slicked surfaces. Linework is thick, pronounced, and cel-shaded."
     }
 ];
 
@@ -68,6 +69,19 @@ export default function Dashboard() {
                             <span className="text-sm font-medium text-white/90">{job.current_action}</span>
                         </div>
 
+                        {/* Master Style Guide Info Panel */}
+                        {job.style_guide && (
+                            <div className="px-6 py-5 border-b border-white/5 bg-black/40">
+                                <h4 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                                    <Activity className="w-4 h-4" />
+                                    Extracted Master Style
+                                </h4>
+                                <p className="text-sm text-white/80 leading-relaxed italic border-l-2 border-primary/50 pl-4 py-1">
+                                    "{job.style_guide}"
+                                </p>
+                            </div>
+                        )}
+
                         {/* Shots Grid */}
                         <div className="p-6">
                             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Shot Queue</h4>
@@ -76,8 +90,8 @@ export default function Dashboard() {
                                     <div
                                         key={shot.id}
                                         className={`p-4 rounded-xl border transition-colors ${shot.state === 'done' ? 'bg-white/5 border-white/10' :
-                                                shot.state === 'active' ? 'bg-primary/10 border-primary/50 ring-1 ring-primary/20' :
-                                                    'bg-transparent border-white/5'
+                                            shot.state === 'active' ? 'bg-primary/10 border-primary/50 ring-1 ring-primary/20' :
+                                                'bg-transparent border-white/5'
                                             }`}
                                     >
                                         <div className="flex justify-between items-start mb-2">
