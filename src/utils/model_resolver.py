@@ -46,12 +46,14 @@ class ModelResolver:
         try:
             if model_type == "gemini_pro":
                 candidates = [m for m in self._available_models if "pro" in m.lower() and "vision" not in m.lower() and "experimental" not in m.lower()]
-                if any("3.1-pro" in m for m in candidates):
+                if any("2.5-pro" in m for m in candidates):
+                    resolved_model = next((m for m in candidates if "2.5-pro" in m), resolved_model)
+                elif any("3.1-pro-preview" in m for m in candidates):
+                    resolved_model = next((m for m in candidates if "3.1-pro-preview" in m), resolved_model)
+                elif any("3.1-pro" in m for m in candidates):
                     resolved_model = next((m for m in candidates if "3.1-pro" in m), resolved_model)
                 elif any("3-pro" in m for m in candidates):
                     resolved_model = next((m for m in candidates if "3-pro" in m), resolved_model)
-                elif any("2.5-pro" in m for m in candidates):
-                    resolved_model = next((m for m in candidates if "2.5-pro" in m), resolved_model)
                     
             elif model_type == "gemini_flash":
                 candidates = [m for m in self._available_models if "flash" in m.lower() and "experimental" not in m.lower()]
@@ -68,17 +70,8 @@ class ModelResolver:
                     resolved_model = next((m for m in candidates if "3" in m), resolved_model)
                     
             elif model_type == "imagen":
-                candidates = [m for m in self._available_models if "imagen" in m.lower()]
-                if any("4" in m for m in candidates):
-                    resolved_model = next((m for m in candidates if "4" in m), resolved_model)
-                elif any("3" in m for m in candidates):
-                    resolved_model = next((m for m in candidates if "3" in m), resolved_model)
-                    
-            elif model_type == "nano_banana":
-                candidates = [m for m in self._available_models if "banana" in m.lower() or "flash-image" in m.lower()]
-                if candidates:
-                    resolved_model = candidates[0]
-                    
+                # Do not dynamically fetch because Vertex 3.0 quotas are extremely specific per-patch (001 vs 002)
+                resolved_model = fallback                    
         except Exception as e:
             logger.warning(f"Error resolving model {model_type}: {e}")
             
@@ -92,9 +85,9 @@ class ModelResolver:
         fallback = gcp_config.get("fallback_models", {})
         
         return {
-            "gemini_pro": self.resolve("gemini_pro", fallback.get("gemini_pro", "gemini-3.1-pro")),
-            "gemini_flash": self.resolve("gemini_flash", fallback.get("gemini_flash", "gemini-3-flash")),
+            "gemini_pro": self.resolve("gemini_pro", fallback.get("gemini_pro", "gemini-2.5-pro")),
+            "gemini_flash": self.resolve("gemini_flash", fallback.get("gemini_flash", "gemini-2.5-flash")),
             "veo": self.resolve("veo", fallback.get("veo", "veo-3.1-generate-preview")),
-            "imagen": self.resolve("imagen", fallback.get("imagen", "imagen-3.0-generate-002")),
-            "nano_banana": self.resolve("nano_banana", fallback.get("nano_banana", "gemini-2.5-flash-image"))
+            "imagen": self.resolve("imagen", fallback.get("imagen", "imagen-3.0-generate-001")),
+            "nano_banana": self.resolve("nano_banana", fallback.get("nano_banana", "imagen-3.0-generate-001"))
         }

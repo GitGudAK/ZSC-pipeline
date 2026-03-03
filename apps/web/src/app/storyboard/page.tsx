@@ -95,6 +95,8 @@ export default function Storyboard() {
                                 {shot.shot_type} • {shot.camera}
                             </div>
 
+
+
                             <p className="text-sm text-gray-300 line-clamp-3 leading-relaxed">
                                 {shot.action}
                             </p>
@@ -103,7 +105,7 @@ export default function Storyboard() {
                                 <div className="mt-auto pt-3 border-t border-white/10">
                                     <p className="text-xs text-gray-400 italic flex items-start gap-2">
                                         <MessageCircle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-white/40" />
-                                        "{shot.dialogue}"
+                                        &quot;{shot.dialogue}&quot;
                                     </p>
                                 </div>
                             )}

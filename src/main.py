@@ -33,6 +33,16 @@ def load_config(config_path: str) -> dict:
                     base_config[k].update(v)
                 else:
                     base_config[k] = v
+    # Simple env var substitution for string values
+    def replace_env_vars(d):
+        for k, v in d.items():
+            if isinstance(v, dict):
+                replace_env_vars(v)
+            elif isinstance(v, str) and v.startswith("${") and v.endswith("}"):
+                env_key = v[2:-1]
+                d[k] = os.environ.get(env_key, v)
+
+    replace_env_vars(base_config)
     return base_config
 
 def save_state(storage: StorageManager, episode: Episode, path: str):

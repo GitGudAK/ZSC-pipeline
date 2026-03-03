@@ -17,8 +17,13 @@ class StorageManager:
         if self.is_cloud:
             try:
                 self.client = storage.Client()
-                self.bucket = self.client.bucket(self.bucket_name)
-                logger.info(f"Initialized Cloud Storage for bucket: {self.bucket_name}")
+                
+                try:
+                    self.bucket = self.client.get_bucket(self.bucket_name)
+                    logger.info(f"Initialized existing Cloud Storage bucket: {self.bucket_name}")
+                except Exception:
+                    self.bucket = self.client.create_bucket(self.bucket_name, location="us-central1")
+                    logger.info(f"Created new Cloud Storage bucket: {self.bucket_name}")
             except Exception as e:
                 logger.error(f"Failed to initialize GCS client: {e}. Falling back to local.")
                 self.is_cloud = False

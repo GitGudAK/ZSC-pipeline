@@ -11,7 +11,8 @@ dependencies = [
     "aiohttp",
     "pyyaml",
     "google-cloud-storage",
-    "yt-dlp"
+    "yt-dlp",
+    "fal-client"
 ]
 
 [project.scripts]

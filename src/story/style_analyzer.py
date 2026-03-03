@@ -16,7 +16,7 @@ class StyleAnalyzer:
         self.client = gcp_client.client
         self.config = config
         self.storage = StorageManager(config)
-        self.model_id = gcp_client.get_model("gemini")
+        self.model_id = gcp_client.get_model("gemini_pro")
         
         # Determine fallback default style if analysis fails
         self.default_style = config.get("style", {}).get("guide", "Modern anime style, cinematic lighting.")
@@ -55,24 +55,31 @@ class StyleAnalyzer:
                 logger.error(f"Could not stage file {uri} for upload to Gemini.")
                 return None
                 
-            logger.info(f"Uploading style reference to Gemini: {local_path}")
-            uploaded_file = self.client.files.upload(file=local_path)
+            from google.cloud import storage
+            storage_client = storage.Client(project=self.gcp_client.project_id)
+            bucket_name = self.gcp_client.project_id + "-gemini-uploads"
             
-            # If it's a video, we might need to wait for processing
-            if local_path.lower().endswith(('.mp4', '.mov', '.avi')):
-                logger.info(f"Waiting for video {uploaded_file.name} to process in Gemini...")
-                while True:
-                    file_info = self.client.files.get(name=uploaded_file.name)
-                    if file_info.state == "FAILED":
-                        logger.error(f"Video processing failed for {uploaded_file.name}")
-                        return None
-                    if file_info.state == "ACTIVE":
-                        break
-                    time.sleep(2)
-                    
-            return uploaded_file
+            try:
+                bucket = storage_client.get_bucket(bucket_name)
+            except Exception:
+                # Create if it doesn't exist
+                bucket = storage_client.create_bucket(bucket_name, location=self.gcp_client.region)
+                
+            blob_name = f"style_ref_{int(time.time())}_{os.path.basename(local_path)}"
+            blob = bucket.blob(blob_name)
+            
+            logger.info(f"Uploading style reference to GCS: gs://{bucket_name}/{blob_name}")
+            blob.upload_from_filename(local_path)
+            
+            from google.genai.types import Part
+            # The GenAI SDK for Python currently expects file_uri and mime_type as explicit kwargs for Vertex
+            return Part.from_uri(
+                file_uri=f"gs://{bucket_name}/{blob_name}", 
+                mime_type="video/mp4" if local_path.lower().endswith(('.mp4', '.mov', '.avi')) else "image/jpeg"
+            )
+
         except Exception as e:
-            logger.error(f"Failed to upload media {uri} to Gemini: {e}")
+            logger.error(f"Failed to upload media {uri} to Gemini GCS bucket: {e}")
             return None
 
     def synthesize_style(self, media_uris: List[str]) -> str:

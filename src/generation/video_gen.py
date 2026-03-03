@@ -1,9 +1,7 @@
 import os
-import time
 import logging
+import base64
 from typing import List, Optional
-from google import genai
-from google.genai import types
 from src.utils.gcp_client import GCPClient
 from src.utils.storage import StorageManager
 from src.models.episode import Shot
@@ -14,10 +12,6 @@ class VideoGenerator:
     def __init__(self, gcp_client: GCPClient, config: dict):
         self.client = gcp_client.client
         self.config = config
-        
-        provider = config.get("generation", {}).get("video", {}).get("provider", "veo")
-        self.model_id = gcp_client.get_model(provider)
-        
         self.storage = StorageManager(config)
         
     def generate_from_keyframe(self, shot: Shot) -> str:
@@ -25,51 +19,56 @@ class VideoGenerator:
             logger.warning(f"Shot {shot.id} missing video_prompt or keyframe. Skipping.")
             return shot.clip_path
             
-        logger.info(f"Generating video for shot {shot.id} using {self.model_id}...")
+        import requests
+        import fal_client
+        from google.cloud import storage
         
+        logger.info(f"Generating video for shot {shot.id} using fal.ai (fal-ai/minimax/video-01)...")
+        
+        if not os.environ.get("FAL_KEY"):
+            logger.error("FAL_KEY environment variable is not set. Cannot use fal.ai")
+            return shot.clip_path
+            
         try:
-            # Download image locally first if it's in GCS to upload to Gemini File API
-            logger.info(f"Staging keyframe {shot.keyframe_path}...")
-            local_kf = self.storage.download_to_local(shot.keyframe_path, f"/tmp/{shot.id}_kf.jpg")
-            
-            uploaded_image = self.client.files.upload(file=local_kf)
-            
-            config_params = {"resolution": self.config.get("episode", {}).get("resolution", "1080p")}
-            
-            operation = self.client.models.generate_videos(
-                model=self.model_id,
-                prompt=shot.video_prompt,
-                image=uploaded_image,
-                config=types.GenerateVideosConfig(**config_params),
+            image_url = ""
+            if shot.keyframe_path.startswith("gs://"):
+                bucket_name = shot.keyframe_path.split("/")[2]
+                blob_name = "/".join(shot.keyframe_path.split("/")[3:])
+                storage_client = storage.Client()
+                bucket = storage_client.bucket(bucket_name)
+                blob = bucket.blob(blob_name)
+                img_data = blob.download_as_bytes()
+                encoded_image = base64.b64encode(img_data).decode("utf-8")
+                image_url = f"data:image/jpeg;base64,{encoded_image}"
+            else:
+                with open(shot.keyframe_path, "rb") as f:
+                    img_data = f.read()
+                encoded_image = base64.b64encode(img_data).decode("utf-8")
+                image_url = f"data:image/jpeg;base64,{encoded_image}"
+                
+            result = fal_client.subscribe(
+                "fal-ai/minimax/video-01",
+                arguments={
+                    "prompt": shot.video_prompt,
+                    "image_url": image_url
+                },
+                with_logs=True
             )
             
-            # Poll until done
-            logger.info(f"Waiting for video generation of shot {shot.id} to complete...")
-            while not operation.done:
-                time.sleep(10)
-                operation = self.client.operations.get(operation=operation)
+            if "video" in result and result["video"] and "url" in result["video"]:
+                video_download_url = result["video"]["url"]
                 
-            if hasattr(operation.response, 'generated_videos') and operation.response.generated_videos:
-                video_obj = operation.response.generated_videos[0]
+                vid_resp = requests.get(video_download_url)
+                vid_resp.raise_for_status()
+                
                 filename = f"clips/{shot.id}.mp4"
-                
-                # Retrieve the contents of the generated video
-                if hasattr(video_obj, "video_bytes") and video_obj.video_bytes:
-                    saved_path = self.storage.write_bytes(video_obj.video_bytes, filename)
-                    shot.clip_path = saved_path
-                    logger.info(f"Saved clip for shot {shot.id} to {saved_path}")
-                elif hasattr(video_obj, "uri") and video_obj.uri:
-                    import requests
-                    r = requests.get(video_obj.uri)
-                    saved_path = self.storage.write_bytes(r.content, filename)
-                    shot.clip_path = saved_path
-                    logger.info(f"Saved clip for shot {shot.id} to {saved_path}")
-                else:
-                    logger.error(f"Cannot decode generated video content for shot {shot.id}")
+                saved_path = self.storage.write_bytes(vid_resp.content, filename)
+                shot.clip_path = saved_path
+                logger.info(f"Saved fal.ai clip for shot {shot.id} to {saved_path}")
             else:
-                logger.error(f"No video generated for shot {shot.id}")
+                logger.error(f"No video returned from fal.ai for shot {shot.id}: {result}")
                 
         except Exception as e:
-            logger.error(f"Error generating video for shot {shot.id}: {e}")
+            logger.error(f"Error generating fal.ai video for shot {shot.id}: {e}")
             
         return shot.clip_path
