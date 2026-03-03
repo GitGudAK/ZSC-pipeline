@@ -1,7 +1,15 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { Sparkles, Wand2, UploadCloud, X, FileImage, FileVideo, Youtube } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Sparkles, Wand2, UploadCloud, X, FileImage, FileVideo, Youtube, Save, Trash2, FolderOpen, Loader2 } from 'lucide-react';
+
+interface Project {
+  name: string;
+  folder: string;
+  episode_title: string;
+  shot_count: number;
+  saved_at: string;
+}
 
 export default function Home() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -10,6 +18,67 @@ export default function Home() {
   const [youtubeInput, setYoutubeInput] = useState("");
   const [story, setStory] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [projectName, setProjectName] = useState("");
+  const [projectAction, setProjectAction] = useState("");
+
+  useEffect(() => { fetchProjects(); }, []);
+
+  const fetchProjects = async () => {
+    try {
+      const res = await fetch('/api/projects');
+      const data = await res.json();
+      setProjects(data.projects || []);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleSaveProject = async () => {
+    if (!projectName.trim()) return;
+    setProjectAction('saving');
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: projectName }),
+      });
+      if ((await res.json()).success) {
+        setShowSaveDialog(false);
+        setProjectName("");
+        fetchProjects();
+      }
+    } catch (e) { console.error(e); }
+    setProjectAction('');
+  };
+
+  const handleClearSession = async () => {
+    if (!confirm('Clear the current session? All unsaved progress will be lost.')) return;
+    setProjectAction('clearing');
+    try {
+      await fetch('/api/projects', { method: 'DELETE' });
+      fetchProjects();
+    } catch (e) { console.error(e); }
+    setProjectAction('');
+  };
+
+  const handleLoadProject = async (folder: string) => {
+    if (!confirm('Load this project? It will replace the current session.')) return;
+    setProjectAction('loading');
+    try {
+      await fetch(`/api/projects/${folder}`, { method: 'POST' });
+      fetchProjects();
+    } catch (e) { console.error(e); }
+    setProjectAction('');
+  };
+
+  const handleDeleteProject = async (folder: string) => {
+    if (!confirm('Permanently delete this saved project?')) return;
+    try {
+      await fetch(`/api/projects/${folder}`, { method: 'DELETE' });
+      fetchProjects();
+    } catch (e) { console.error(e); }
+  };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -194,7 +263,23 @@ export default function Home() {
         </div>
 
         {/* Generate Button Area */}
-        <div className="pt-4 flex justify-end">
+        <div className="pt-4 flex justify-end gap-3">
+          <button
+            onClick={handleClearSession}
+            disabled={!!projectAction}
+            className="inline-flex items-center gap-2 rounded-full border border-white/20 text-white/70 px-6 py-4 font-medium hover:bg-white/10 hover:text-white transition-all text-sm disabled:opacity-50"
+          >
+            <Trash2 className="w-4 h-4" />
+            Clear Session
+          </button>
+          <button
+            onClick={() => setShowSaveDialog(true)}
+            disabled={!!projectAction}
+            className="inline-flex items-center gap-2 rounded-full border border-primary/40 text-primary px-6 py-4 font-medium hover:bg-primary/10 transition-all text-sm disabled:opacity-50"
+          >
+            <Save className="w-4 h-4" />
+            Save Project
+          </button>
           <button
             onClick={handleBeginPipeline}
             disabled={isGenerating || !story}
@@ -213,6 +298,68 @@ export default function Home() {
             )}
           </button>
         </div>
+
+        {/* Save Dialog */}
+        {showSaveDialog && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center" onClick={() => setShowSaveDialog(false)}>
+            <div className="glass-card p-6 w-full max-w-md space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold text-white">Save as Project</h3>
+              <input
+                type="text"
+                value={projectName}
+                onChange={e => setProjectName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSaveProject()}
+                placeholder="Enter project name..."
+                className="w-full bg-black/50 border border-white/10 rounded-lg py-2.5 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all placeholder:text-white/30"
+                autoFocus
+              />
+              <div className="flex gap-3 justify-end">
+                <button onClick={() => setShowSaveDialog(false)} className="px-4 py-2 text-sm text-white/70 hover:text-white transition-colors">Cancel</button>
+                <button
+                  onClick={handleSaveProject}
+                  disabled={!projectName.trim() || projectAction === 'saving'}
+                  className="px-5 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  {projectAction === 'saving' ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Saved Projects */}
+        {projects.length > 0 && (
+          <div className="glass-card p-6 space-y-4 shadow-xl shadow-black/50">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <FolderOpen className="w-5 h-5 text-primary" />
+              Saved Projects
+            </h2>
+            <div className="space-y-2">
+              {projects.map((p) => (
+                <div key={p.folder} className="flex items-center justify-between p-4 rounded-xl bg-black/30 border border-white/10 hover:border-white/20 transition-colors">
+                  <div className="space-y-1">
+                    <p className="font-medium text-white text-sm">{p.name}</p>
+                    <p className="text-xs text-white/50">{p.episode_title} · {p.shot_count} shots · saved {new Date(p.saved_at).toLocaleDateString()}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleLoadProject(p.folder)}
+                      className="px-3 py-1.5 text-xs font-medium bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
+                    >
+                      Load
+                    </button>
+                    <button
+                      onClick={() => handleDeleteProject(p.folder)}
+                      className="px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/20 rounded-md transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

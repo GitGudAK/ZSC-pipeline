@@ -1,6 +1,6 @@
 import os
 import logging
-import ffmpeg
+import subprocess
 from typing import List
 from src.utils.storage import StorageManager
 from src.models.episode import Shot, Episode
@@ -35,23 +35,42 @@ class Stitcher:
             list_file_path = os.path.join(self.local_tmp_dir, "concat_list.txt")
             with open(list_file_path, "w") as f:
                 for idx, clip in enumerate(clips):
-                    # Download each clip to local temp dir
                     local_clip_path = os.path.join(self.local_tmp_dir, f"clip_{idx}.mp4")
-                    self.storage.download_to_local(clip, local_clip_path)
+                    
+                    # download_to_local returns source for local files
+                    result_path = self.storage.download_to_local(clip, local_clip_path)
+                    
+                    # If local, result_path is the original. Copy it to tmp for concat.
+                    if result_path and result_path != local_clip_path:
+                        import shutil
+                        os.makedirs(os.path.dirname(local_clip_path), exist_ok=True)
+                        shutil.copy2(result_path, local_clip_path)
                     
                     if os.path.exists(local_clip_path):
                         abs_path = os.path.abspath(local_clip_path)
-                        f.write(f"file '{abs_path}'\\n")
+                        f.write(f"file '{abs_path}'\n")
                         
             logger.info(f"Running ffmpeg concatenation for {len(clips)} clips...")
             
-            (
-                ffmpeg
-                .input(list_file_path, format='concat', safe=0)
-                .output(local_output, c='copy')
-                .overwrite_output()
-                .run(capture_stdout=True, capture_stderr=True)
+            # Use subprocess directly to avoid pipe deadlock from ffmpeg-python
+            cmd = [
+                "ffmpeg", "-y",
+                "-f", "concat", "-safe", "0",
+                "-i", list_file_path,
+                "-c", "copy",
+                local_output
+            ]
+            
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300  # 5 minute timeout
             )
+            
+            if result.returncode != 0:
+                logger.error(f"FFmpeg error: {result.stderr[-500:]}")
+                return ""
             
             # Upload final video back to storage
             final_path = self.storage.upload_from_local(local_output, final_cloud_dest)
@@ -59,9 +78,8 @@ class Stitcher:
             logger.info(f"Successfully assembled episode to {final_path}")
             return final_path
             
-        except ffmpeg.Error as e:
-            error_msg = e.stderr.decode() if getattr(e, 'stderr', None) else str(e)
-            logger.error(f"FFmpeg error: {error_msg}")
+        except subprocess.TimeoutExpired:
+            logger.error("FFmpeg concat timed out after 300s")
             return ""
         except Exception as e:
             logger.error(f"Assembly failed: {e}")

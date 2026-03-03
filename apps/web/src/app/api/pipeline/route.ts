@@ -9,9 +9,9 @@ const PIPELINE_STATE_FILE = '/Users/ashwink/Desktop/ZSC-pipeline/output/pipeline
 export async function POST(request: Request) {
     try {
         const formData = await request.formData();
-        const story = formData.get('story_text') as string;
+        const story = formData.get('story') as string;
         const styleRefFiles = formData.getAll('styleRefs') as File[];
-        const youtubeUrls = formData.getAll('youtube_url') as string[];
+        const youtubeUrls = formData.getAll('youtubeUrls') as string[];
 
         // Create a temp directory for the references
         const tmpDir = '/tmp/anime_style_refs';
@@ -41,8 +41,20 @@ export async function POST(request: Request) {
 
         console.log(`Triggering pipeline for story...`);
 
+        // Write an initial "processing" state so the UI doesn't say "No Job Running"
+        const initialState = {
+            title: "Generating...",
+            episode_number: 1,
+            total_duration_target: 0,
+            synopsis: "Extracting story and generating scene logic...",
+            characters: [],
+            scenes: [],
+            style_guide: ""
+        };
+        await writeFile(PIPELINE_STATE_FILE, JSON.stringify(initialState, null, 2));
+
         // Execute the CLI in the background
-        const cmd = `cd /Users/ashwink/Desktop/ZSC-pipeline && export GCP_PROJECT_ID=gen-lang-client-0655380841 && source .venv/bin/activate || true && python -m src.main run --config config/example_episode.yaml --story ${storyFilePath} ${styleRefsArg} > /tmp/pipeline_run.log 2>&1 &`;
+        const cmd = `cd /Users/ashwink/Desktop/ZSC-pipeline && set -a && source .env && set +a && export GCP_PROJECT_ID=gen-lang-client-0655380841 && source .venv/bin/activate || true && python -m src.main run --config config/example_episode.yaml --story ${storyFilePath} ${styleRefsArg} > /tmp/pipeline_run.log 2>&1 &`;
 
         exec(cmd, (error, stdout, stderr) => {
             if (error) console.error("CLI exec error", error);

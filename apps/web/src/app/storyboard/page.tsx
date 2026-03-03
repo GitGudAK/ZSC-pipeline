@@ -1,43 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Camera, RefreshCw, Play, Film, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// Mock data to demonstrate the UI without needing the Python backend running yet
-const MOCK_SHOTS = [
-    {
-        id: "scene_01_shot_001",
-        shot_type: "Wide Shot",
-        camera: "Static",
-        duration: 5.0,
-        action: "Hikari discovers a fading star in an abandoned alleyway. The alley is dark, lit only by neon signs from the distant street.",
-        dialogue: null,
-        status: "keyframe_generated",
-        thumbnail: "https://images.unsplash.com/photo-1542451313056-b7c8e626645f?q=80&w=400&h=200&fit=crop"
-    },
-    {
-        id: "scene_01_shot_002",
-        shot_type: "Close Up",
-        camera: "Zoom In",
-        duration: 3.5,
-        action: "Hikari reaches out, her hand glowing with a soft blue magical energy.",
-        dialogue: null,
-        status: "pending",
-    },
-    {
-        id: "scene_01_shot_003",
-        shot_type: "Medium Shot",
-        camera: "Pan Right",
-        duration: 4.0,
-        action: "Yoru, a mysterious boy in a dark coat, steps from the shadows.",
-        dialogue: "You shouldn't have done that.",
-        status: "pending",
-    }
-];
-
 export default function Storyboard() {
     const [selectedShot, setSelectedShot] = useState<string | null>(null);
+    const [job, setJob] = useState<any>(null);
+
+    useEffect(() => {
+        const fetchPipeline = () => {
+            fetch('/api/pipeline')
+                .then(res => res.json())
+                .then(data => setJob(data.state))
+                .catch(err => console.error(err));
+        };
+        fetchPipeline(); // initial fetch
+        const interval = setInterval(fetchPipeline, 3000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const shots = job?.scenes?.flatMap((scene: any) => scene.shots) || [];
 
     return (
         <div className="max-w-6xl mx-auto space-y-6">
@@ -57,7 +40,7 @@ export default function Storyboard() {
             </header>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pt-4">
-                {MOCK_SHOTS.map((shot, idx) => (
+                {shots.map((shot: any, idx: number) => (
                     <div
                         key={shot.id}
                         onClick={() => setSelectedShot(shot.id)}
@@ -68,9 +51,9 @@ export default function Storyboard() {
                     >
                         {/* Thumbnail Area */}
                         <div className="relative aspect-video bg-white/5 border-b border-white/10 flex flex-col justify-end">
-                            {shot.thumbnail ? (
+                            {shot.keyframe_path ? (
                                 /* eslint-disable-next-line @next/next/no-img-element */
-                                <img src={shot.thumbnail} alt={shot.action} className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                                <img src={`/api/asset?path=${encodeURIComponent(shot.keyframe_path)}`} alt={shot.description} className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                             ) : (
                                 <div className="absolute inset-0 flex items-center justify-center text-white/20 group-hover:text-white/40">
                                     <Camera className="w-8 h-8" />
@@ -83,7 +66,7 @@ export default function Storyboard() {
                                     Shot {idx + 1}
                                 </span>
                                 <span className="text-xs font-medium px-2 py-1 bg-black/60 backdrop-blur-md rounded text-primary-foreground flex items-center gap-1">
-                                    <Play className="w-3 h-3" /> {shot.duration}s
+                                    <Play className="w-3 h-3" /> {shot.duration_seconds}s
                                 </span>
                             </div>
                         </div>
@@ -92,13 +75,11 @@ export default function Storyboard() {
                         <div className="p-4 space-y-3 flex-1">
                             <div className="flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider">
                                 <Film className="w-3.5 h-3.5" />
-                                {shot.shot_type} • {shot.camera}
+                                {shot.shot_type} • {shot.camera_movement}
                             </div>
 
-
-
                             <p className="text-sm text-gray-300 line-clamp-3 leading-relaxed">
-                                {shot.action}
+                                {shot.description}
                             </p>
 
                             {shot.dialogue && (

@@ -1,0 +1,9 @@
+episode:
+  title: "Simulation Episode"
+  episode_number: 1
+  synopsis: "A short simulation episode for testing the full pipeline."
+  target_duration_minutes: 2
+  target_shot_count: 8
+
+style:
+  guide: "Modern anime style, Makoto Shinkai-inspired backgrounds with rich sky gradients and volumetric lighting. Character designs are clean with expressive eyes. Night scenes are deep blue with star particle effects. Magic effects glow with soft bloom."

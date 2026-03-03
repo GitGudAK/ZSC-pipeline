@@ -99,6 +99,8 @@ def run(config: str, story: str, style_refs: str):
     
     decomposer = StoryDecomposer(gcp_client, cfg)
     episode.scenes = decomposer.decompose(story_text, episode.characters)
+    save_state(storage, episode, state_file)
+    logger.info("Saved state after decomposition.")
     
     prompt_writer = PromptWriter(cfg)
     episode.scenes = prompt_writer.write_prompts(episode.scenes, episode.characters)
