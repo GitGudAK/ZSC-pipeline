@@ -61,15 +61,19 @@ class Stitcher:
                 local_output
             ]
             
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=300  # 5 minute timeout
-            )
+            stderr_log = os.path.join(self.local_tmp_dir, "ffmpeg_stderr.log")
+            with open(stderr_log, "w") as stderr_file:
+                result = subprocess.run(
+                    cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=stderr_file,
+                    timeout=300  # 5 minute timeout
+                )
             
             if result.returncode != 0:
-                logger.error(f"FFmpeg error: {result.stderr[-500:]}")
+                with open(stderr_log) as f:
+                    err_text = f.read()[-500:]
+                logger.error(f"FFmpeg error: {err_text}")
                 return ""
             
             # Upload final video back to storage
