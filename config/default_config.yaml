@@ -43,7 +43,7 @@ style:
 # Generation settings
 generation:
   keyframe:
-    provider: "vertex"  # "vertex" (Gemini, free with subscription) or "fal" (fal.ai, costs per image)
+    provider: "fal"  # "vertex" (Gemini, free with subscription) or "fal" (fal.ai, costs per image)
     batch_size: 10
     retry_count: 3
   video:
