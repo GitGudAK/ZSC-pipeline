@@ -34,11 +34,11 @@ episode:
   resolution: "1080p"  # 720p, 1080p, 4k
   aspect_ratio: "16:9"
 
-# Style
+# Style — matches "Felix - Official Teaser" visual language
 style:
-  guide: "Modern anime style, vibrant colors, clean linework, expressive eyes, dynamic lighting. Similar to Makoto Shinkai's color palette with Studio Trigger's energy."
-  setting: ""  # Historical/world setting, e.g. "Roman Republic, 1st century BC, Mediterranean architecture, toga-clad figures, ancient stone columns"
-  negative_prompt: "photorealistic, 3D render, western cartoon, blurry, low quality"
+  guide: "Dark painterly anime style. Heavy ink-like outlines with variable weight. Muted earth-tone palette — deep browns, weathered bronze, burgundy reds, dusty ochre. Dramatic chiaroscuro lighting with warm torch/candle glows against deep shadows. Textured brush strokes visible in backgrounds, cel-shaded characters with soft gradient shading. Cinematic composition, moody atmosphere, rain and particle effects. Gritty realism within anime proportions. NO bright saturated colors, NO clean modern aesthetics."
+  setting: "Roman Republic, 1st century BC. Mediterranean stone architecture — arches, columns, cobblestone streets, dusty roads. Characters wear togas, leather armor (lorica), sandals. Olive groves, temple ruins, torchlit interiors. Ancient world — no modern elements whatsoever."
+  negative_prompt: "photorealistic, 3D render, western cartoon, blurry, low quality, modern architecture, neon colors, bright saturated colors, clean lines, flat shading"
 
 # Generation settings
 generation:
