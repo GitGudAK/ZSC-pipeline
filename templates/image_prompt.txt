@@ -2,4 +2,4 @@
 {character_descriptions}
 {shot_description}
 Location: {location}, Time: {time_of_day}, Mood: {mood}
-Additional instructions: create a single keyframe image in 16:9 widescreen landscape format. Full width, cinematic composition.
+Additional instructions: create a single keyframe image in 16:9 widescreen landscape format. Full width, cinematic composition. Characters must have complete, anatomically correct bodies — no severed heads, detached limbs, or floating body parts.

@@ -1,6 +1,7 @@
 import json
 import logging
 from typing import List
+from google.genai import types
 from src.utils.gcp_client import GCPClient
 from src.models.episode import Scene, Character
 
@@ -34,14 +35,16 @@ class StoryDecomposer:
             story_text=story_text
         )
         
-        logger.info(f"Decomposing story using model {self.model_id}...")
+        logger.info(f"Decomposing story using model {self.model_id} (thinking mode enabled)...")
         
         response = self.client.models.generate_content(
             model=self.model_id,
             contents=prompt,
-            config={
-                "response_mime_type": "application/json",
-            }
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                thinking_config=types.ThinkingConfig(thinking_budget=8192),
+                temperature=0.3,
+            )
         )
         
         try:

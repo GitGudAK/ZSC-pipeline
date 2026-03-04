@@ -38,7 +38,7 @@ episode:
 style:
   guide: "Dark painterly anime style. Heavy ink-like outlines with variable weight. Muted earth-tone palette — deep browns, weathered bronze, burgundy reds, dusty ochre. Dramatic chiaroscuro lighting with warm torch/candle glows against deep shadows. Textured brush strokes visible in backgrounds, cel-shaded characters with soft gradient shading. Cinematic composition, moody atmosphere, rain and particle effects. Gritty realism within anime proportions. NO bright saturated colors, NO clean modern aesthetics."
   setting: "Roman Republic, 1st century BC. Mediterranean stone architecture — arches, columns, cobblestone streets, dusty roads. Characters wear togas, leather armor (lorica), sandals. Olive groves, temple ruins, torchlit interiors. Ancient world — no modern elements whatsoever."
-  negative_prompt: "photorealistic, 3D render, western cartoon, blurry, low quality, modern architecture, neon colors, bright saturated colors, clean lines, flat shading"
+  negative_prompt: "photorealistic, 3D render, western cartoon, blurry, low quality, modern architecture, neon colors, bright saturated colors, clean lines, flat shading, dismembered, severed limbs, floating heads, detached body parts, anatomical errors, deformed anatomy, extra limbs, missing limbs"
 
 # Generation settings
 generation:

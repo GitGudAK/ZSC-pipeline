@@ -20,6 +20,16 @@ RULES:
 5. Include transition types between shots (cut for same-scene, fade/dissolve for scene changes)
 6. Vary pacing — mix fast cuts in action with slow contemplative shots
 7. Dialogue should be concise and punchy (anime style)
+8. CHARACTER ANATOMY — When describing characters in shots:
+   - Always describe characters as whole, complete figures with correct body proportions
+   - Specify character positions clearly (standing, sitting, kneeling, etc.)
+   - For close-ups, specify what is framed (e.g. "close-up of face and shoulders", NOT just a floating head)
+   - Never describe detached or isolated body parts
+   - Describe character poses naturally (arms, hands, posture)
+9. VISUAL DESCRIPTIONS must be concrete enough for an AI image generator:
+   - Describe spatial relationships between characters and environment
+   - Include lighting direction and quality
+   - Specify foreground/midground/background elements
 
 OUTPUT FORMAT:
 Return valid JSON matching this schema:
