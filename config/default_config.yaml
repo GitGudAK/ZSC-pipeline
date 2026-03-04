@@ -37,6 +37,7 @@ episode:
 # Style
 style:
   guide: "Modern anime style, vibrant colors, clean linework, expressive eyes, dynamic lighting. Similar to Makoto Shinkai's color palette with Studio Trigger's energy."
+  setting: ""  # Historical/world setting, e.g. "Roman Republic, 1st century BC, Mediterranean architecture, toga-clad figures, ancient stone columns"
   negative_prompt: "photorealistic, 3D render, western cartoon, blurry, low quality"
 
 # Generation settings

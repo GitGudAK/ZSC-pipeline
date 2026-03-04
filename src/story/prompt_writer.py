@@ -16,6 +16,15 @@ class PromptWriter:
             
     def write_prompts(self, scenes: List[Scene], characters: List[Character]) -> List[Scene]:
         style_guide = self.config.get("style", {}).get("guide", "")
+        setting = self.config.get("style", {}).get("setting", "")
+        
+        # Build style context: setting comes first so it anchors the era/world
+        style_parts = []
+        if setting:
+            style_parts.append(f"SETTING: {setting}")
+        if style_guide:
+            style_parts.append(f"STYLE: {style_guide}")
+        style_context = "\n".join(style_parts)
         
         # Create a lookup for character descriptions
         char_lookup = {c.name.lower(): c for c in characters}
@@ -38,7 +47,7 @@ class PromptWriter:
                 
                 # Format image prompt
                 shot.image_prompt = self.image_prompt_template.format(
-                    style_guide=f"STYLE: {style_guide}",
+                    style_guide=style_context,
                     character_descriptions=char_context,
                     shot_description=f"ACTION: {shot.description}",
                     location=shot.location,
@@ -48,7 +57,7 @@ class PromptWriter:
                 
                 # Format video prompt
                 shot.video_prompt = self.video_prompt_template.format(
-                    style_guide=f"STYLE: {style_guide}",
+                    style_guide=style_context,
                     character_descriptions=char_context,
                     shot_description=f"ACTION: {shot.description}",
                     camera_movement=shot.camera_movement,
@@ -58,7 +67,7 @@ class PromptWriter:
                 # Format end-frame prompt (scene after camera movement / action completes)
                 end_description = f"END OF SHOT — After {shot.camera_movement} has completed. {shot.description} The action has reached its conclusion."
                 shot.image_prompt_end = self.image_prompt_template.format(
-                    style_guide=f"STYLE: {style_guide}",
+                    style_guide=style_context,
                     character_descriptions=char_context,
                     shot_description=f"ACTION: {end_description}",
                     location=shot.location,
