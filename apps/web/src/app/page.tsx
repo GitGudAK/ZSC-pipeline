@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Sparkles, Wand2, UploadCloud, X, FileImage, FileVideo, Youtube, Save, Trash2, FolderOpen, Loader2, UserPlus, Users } from 'lucide-react';
+import { Sparkles, Wand2, UploadCloud, X, FileImage, FileVideo, Youtube, Save, Trash2, FolderOpen, Loader2, UserPlus, Users, Palette, PenTool, Check } from 'lucide-react';
 
 interface Project {
   name: string;
@@ -20,8 +20,15 @@ interface CharacterRef {
 
 export default function Home() {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [styleRefs, setStyleRefs] = useState<File[]>([]);
   const [youtubeUrls, setYoutubeUrls] = useState<string[]>([]);
+
+  // Inferred style state
+  const [inferredStyle, setInferredStyle] = useState<{ setting: string; guide: string; negative_prompt: string } | null>(null);
+  const [editSetting, setEditSetting] = useState('');
+  const [editGuide, setEditGuide] = useState('');
+  const [editNegative, setEditNegative] = useState('');
   const [youtubeInput, setYoutubeInput] = useState("");
   const [story, setStory] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -176,6 +183,42 @@ export default function Home() {
     setYoutubeUrls(prev => prev.filter((_, i) => i !== idx));
   };
 
+  const handleAnalyzeStyle = async () => {
+    if (!story) {
+      alert("Please enter a story before analyzing.");
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setInferredStyle(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('story', story);
+      styleRefs.forEach((file) => formData.append('styleRefs', file));
+      youtubeUrls.forEach((url) => formData.append('youtubeUrls', url));
+
+      const res = await fetch('/api/style-infer', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (data.success && data.style) {
+        setInferredStyle(data.style);
+        setEditSetting(data.style.setting);
+        setEditGuide(data.style.guide);
+        setEditNegative(data.style.negative_prompt);
+      } else {
+        alert('Style analysis failed: ' + (data.error || 'Unknown error'));
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error analyzing style');
+    }
+    setIsAnalyzing(false);
+  };
+
   const handleBeginPipeline = async () => {
     if (!story) {
       alert("Please enter a story before generating.");
@@ -187,6 +230,8 @@ export default function Home() {
     try {
       const formData = new FormData();
       formData.append("story", story);
+      formData.append("style_guide", editGuide);
+      formData.append("style_setting", editSetting);
       styleRefs.forEach((file) => formData.append("styleRefs", file));
       youtubeUrls.forEach((url) => formData.append("youtubeUrls", url));
 
@@ -197,7 +242,6 @@ export default function Home() {
 
       const data = await res.json();
       if (data.success) {
-        // In a real app, redirect to dashboard here or start polling
         console.log("Pipeline Triggered:", data);
         setTimeout(() => setIsGenerating(false), 2000);
       } else {
@@ -444,24 +488,102 @@ export default function Home() {
             <Save className="w-4 h-4" />
             Save Project
           </button>
-          <button
-            onClick={handleBeginPipeline}
-            disabled={isGenerating || !story}
-            className="group relative inline-flex items-center justify-center gap-2 rounded-full bg-white text-black px-8 py-4 font-semibold hover:bg-white/90 disabled:opacity-50 disabled:hover:scale-100 transition-all shadow-[0_0_40px_-10px_rgba(255,255,255,0.4)] hover:shadow-[0_0_60px_-15px_rgba(255,255,255,0.6)] hover:-translate-y-0.5"
-          >
-            {isGenerating ? (
-              <>
-                <div className="animate-spin h-5 w-5 border-2 border-black/20 border-t-black rounded-full" />
-                Decomposing Story...
-              </>
-            ) : (
-              <>
-                <Wand2 className="w-5 h-5" />
-                Begin Pipeline
-              </>
-            )}
-          </button>
+          {!inferredStyle ? (
+            <button
+              onClick={handleAnalyzeStyle}
+              disabled={isAnalyzing || !story}
+              className="group relative inline-flex items-center justify-center gap-2 rounded-full bg-white text-black px-8 py-4 font-semibold hover:bg-white/90 disabled:opacity-50 disabled:hover:scale-100 transition-all shadow-[0_0_40px_-10px_rgba(255,255,255,0.4)] hover:shadow-[0_0_60px_-15px_rgba(255,255,255,0.6)] hover:-translate-y-0.5"
+            >
+              {isAnalyzing ? (
+                <>
+                  <div className="animate-spin h-5 w-5 border-2 border-black/20 border-t-black rounded-full" />
+                  Analyzing Style &amp; Era...
+                </>
+              ) : (
+                <>
+                  <Palette className="w-5 h-5" />
+                  Analyze Script
+                </>
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={handleBeginPipeline}
+              disabled={isGenerating || !story}
+              className="group relative inline-flex items-center justify-center gap-2 rounded-full bg-white text-black px-8 py-4 font-semibold hover:bg-white/90 disabled:opacity-50 disabled:hover:scale-100 transition-all shadow-[0_0_40px_-10px_rgba(255,255,255,0.4)] hover:shadow-[0_0_60px_-15px_rgba(255,255,255,0.6)] hover:-translate-y-0.5"
+            >
+              {isGenerating ? (
+                <>
+                  <div className="animate-spin h-5 w-5 border-2 border-black/20 border-t-black rounded-full" />
+                  Decomposing Story...
+                </>
+              ) : (
+                <>
+                  <Check className="w-5 h-5" />
+                  Confirm &amp; Begin Pipeline
+                </>
+              )}
+            </button>
+          )}
         </div>
+
+        {/* Inferred Style Review Panel */}
+        {inferredStyle && (
+          <div className="glass-card p-6 space-y-5 shadow-xl shadow-black/50 border border-primary/30 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <span className="flex h-8 w-8 rounded-full bg-primary/20 text-primary items-center justify-center text-sm">
+                    <PenTool className="w-4 h-4" />
+                  </span>
+                  Inferred Style &amp; Setting
+                </h2>
+                <p className="text-sm text-muted-foreground pl-10">Review and edit the AI-inferred style before generating. These will guide all image generation.</p>
+              </div>
+              <button
+                onClick={() => { setInferredStyle(null); setEditSetting(''); setEditGuide(''); setEditNegative(''); }}
+                className="text-xs text-white/40 hover:text-white/70 transition-colors px-3 py-1.5 rounded-md hover:bg-white/5"
+              >
+                Re-analyze
+              </button>
+            </div>
+
+            <div className="space-y-4 pl-10">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-primary/80">Setting &amp; Era</label>
+                <textarea
+                  value={editSetting}
+                  onChange={(e) => setEditSetting(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-xl bg-black/50 border border-white/10 p-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none placeholder:text-muted-foreground/50 transition-all"
+                  placeholder="e.g. Roman Republic, 1st century BC..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-primary/80">Visual Style Guide</label>
+                <textarea
+                  value={editGuide}
+                  onChange={(e) => setEditGuide(e.target.value)}
+                  rows={4}
+                  className="w-full rounded-xl bg-black/50 border border-white/10 p-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none placeholder:text-muted-foreground/50 transition-all"
+                  placeholder="e.g. Dark painterly anime, heavy ink outlines..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-white/40">Negative Prompt</label>
+                <textarea
+                  value={editNegative}
+                  onChange={(e) => setEditNegative(e.target.value)}
+                  rows={2}
+                  className="w-full rounded-xl bg-black/50 border border-white/10 p-4 text-sm focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-transparent resize-none placeholder:text-muted-foreground/50 transition-all text-white/60"
+                  placeholder="e.g. modern architecture, neon colors..."
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Save Dialog */}
         {showSaveDialog && (

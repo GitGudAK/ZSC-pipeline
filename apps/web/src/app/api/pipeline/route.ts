@@ -35,6 +35,10 @@ export async function POST(request: Request) {
 
         const styleRefsArg = allRefs.length > 0 ? `--style-refs "${allRefs.join(",")}"` : "";
 
+        // Style overrides from style-infer step
+        const styleGuide = (formData.get('style_guide') as string) || '';
+        const styleSetting = (formData.get('style_setting') as string) || '';
+
         // Save the story text
         const storyFilePath = join(tmpDir, `story_${Date.now()}.txt`);
         await writeFile(storyFilePath, Buffer.from(story));
@@ -49,12 +53,18 @@ export async function POST(request: Request) {
             synopsis: "Extracting story and generating scene logic...",
             characters: [],
             scenes: [],
-            style_guide: ""
+            style_guide: styleGuide || ""
         };
         await writeFile(PIPELINE_STATE_FILE, JSON.stringify(initialState, null, 2));
 
+        // Build CLI args — escape single quotes in style strings
+        const escGuide = styleGuide.replace(/'/g, "'\\''");
+        const escSetting = styleSetting.replace(/'/g, "'\\''");
+        const styleArgs = styleGuide ? `--style-guide '${escGuide}'` : '';
+        const settingArgs = styleSetting ? `--style-setting '${escSetting}'` : '';
+
         // Execute the CLI in the background
-        const cmd = `cd /Users/ashwink/Desktop/ZSC-pipeline && set -a && source .env && set +a && export GCP_PROJECT_ID=gen-lang-client-0655380841 && source .venv/bin/activate || true && python -m src.main run --config config/example_episode.yaml --story ${storyFilePath} ${styleRefsArg} > /tmp/pipeline_run.log 2>&1 &`;
+        const cmd = `cd /Users/ashwink/Desktop/ZSC-pipeline && set -a && source .env && set +a && export GCP_PROJECT_ID=gen-lang-client-0655380841 && source .venv/bin/activate || true && python -m src.main run --config config/example_episode.yaml --story ${storyFilePath} ${styleRefsArg} ${styleArgs} ${settingArgs} > /tmp/pipeline_run.log 2>&1 &`;
 
         exec(cmd, (error, stdout, stderr) => {
             if (error) console.error("CLI exec error", error);

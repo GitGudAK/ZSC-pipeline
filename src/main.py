@@ -93,12 +93,22 @@ def cli():
 @click.option("--config", required=True, help="Path to episode config YAML")
 @click.option("--story", required=True, help="Path to story text file")
 @click.option("--style-refs", default=None, help="Comma-separated list of image/video style references")
-def run(config: str, story: str, style_refs: str):
+@click.option("--style-guide", default=None, help="Override style guide text (from style inference)")
+@click.option("--style-setting", default=None, help="Override setting/era text (from style inference)")
+def run(config: str, story: str, style_refs: str, style_guide: str, style_setting: str):
     """Run full pipeline end-to-end"""
     logger.info("Starting Full Pipeline Run")
     cfg = load_config(config)
     gcp_client = GCPClient(cfg)
     storage = StorageManager(cfg)
+    
+    # Apply style overrides from style inference step
+    if style_guide:
+        cfg.setdefault("style", {})["guide"] = style_guide
+        logger.info(f"Style guide overridden from inference: {style_guide[:80]}...")
+    if style_setting:
+        cfg.setdefault("style", {})["setting"] = style_setting
+        logger.info(f"Style setting overridden from inference: {style_setting[:80]}...")
     
     with open(story, "r") as f:
         story_text = f.read()
@@ -116,7 +126,8 @@ def run(config: str, story: str, style_refs: str):
     # Visual Style Analysis (Phase 3)
     refs_list = [r.strip() for r in style_refs.split(",")] if style_refs else []
     
-    if refs_list:
+    if refs_list and not style_guide:
+        # Only run style analysis from refs if no style_guide override was provided
         analyzer = StyleAnalyzer(gcp_client, cfg)
         unified_style = analyzer.synthesize_style(refs_list)
         logger.info(f"Synthesized dynamic style guide from references.")
