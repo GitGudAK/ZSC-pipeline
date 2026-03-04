@@ -53,13 +53,15 @@ class KeyframeGenerator:
         
         return f"data:{mime};base64,{b64}"
     
-    def _find_primary_character(self, shot: Shot) -> Optional[str]:
-        """Find the first character in the shot that has a reference image."""
+    def _collect_character_refs(self, shot: Shot) -> list:
+        """Collect data URIs for all characters present in a shot that have references."""
+        refs = []
         for char_name in shot.characters_present:
-            if char_name.lower() in self.character_refs:
-                return char_name
-        return None
-        
+            uri = self._get_character_data_uri(char_name)
+            if uri:
+                refs.append(uri)
+        return refs
+
     def generate_pair(self, shot: Shot) -> tuple:
         """Generate both start and end keyframes for a shot."""
         import requests
@@ -73,16 +75,13 @@ class KeyframeGenerator:
             logger.error("FAL_KEY not set.")
             return shot.keyframe_path, shot.keyframe_end_path
         
-        primary_char = self._find_primary_character(shot)
-        char_data_uri = None
-        if primary_char:
-            char_data_uri = self._get_character_data_uri(primary_char)
+        char_image_uris = self._collect_character_refs(shot)
         
         # Generate start frame
         logger.info(f"Generating START keyframe for shot {shot.id}...")
         start_path = self._generate_single(
             shot, shot.image_prompt, f"keyframes/{shot.id}_start.jpg",
-            char_data_uri, primary_char, requests, fal_client
+            char_image_uris, requests, fal_client
         )
         if start_path:
             shot.keyframe_path = start_path
@@ -92,7 +91,7 @@ class KeyframeGenerator:
             logger.info(f"Generating END keyframe for shot {shot.id}...")
             end_path = self._generate_single(
                 shot, shot.image_prompt_end, f"keyframes/{shot.id}_end.jpg",
-                char_data_uri, primary_char, requests, fal_client
+                char_image_uris, requests, fal_client
             )
             if end_path:
                 shot.keyframe_end_path = end_path
@@ -100,9 +99,17 @@ class KeyframeGenerator:
         return shot.keyframe_path, shot.keyframe_end_path
 
     def _generate_single(self, shot: Shot, prompt: str, filename: str,
-                         char_data_uri, char_name, requests, fal_client) -> Optional[str]:
-        """Generate a single keyframe image."""
-        model = "fal-ai/instant-character" if char_data_uri else "fal-ai/nano-banana-2"
+                         char_image_uris: list, requests, fal_client) -> Optional[str]:
+        """Generate a single keyframe image using nano-banana-2.
+        
+        If character reference images are provided, uses the /edit endpoint
+        with image_urls so the model renders those exact characters.
+        Otherwise uses the standard text-to-image endpoint.
+        """
+        if char_image_uris:
+            model = "fal-ai/nano-banana-2/edit"
+        else:
+            model = "fal-ai/nano-banana-2"
         
         for attempt in range(1, self.max_retries + 1):
             try:
@@ -110,15 +117,11 @@ class KeyframeGenerator:
                 signal.alarm(self.timeout_seconds)
                 
                 try:
-                    if char_data_uri:
+                    if char_image_uris:
+                        # Use edit endpoint: pass character refs as image_urls
                         result = fal_client.run(model, arguments={
                             "prompt": prompt,
-                            "image_url": char_data_uri,
-                            "image_size": "landscape_16_9",
-                            "scale": 1,
-                            "guidance_scale": 3.5,
-                            "num_inference_steps": 28,
-                            "output_format": "jpeg"
+                            "image_urls": char_image_uris,
                         })
                     else:
                         result = fal_client.run(model, arguments={"prompt": prompt})
