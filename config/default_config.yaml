@@ -43,7 +43,7 @@ style:
 # Generation settings
 generation:
   keyframe:
-    provider: "nano_banana"  # "nano_banana" or "imagen"
+    provider: "vertex"  # "vertex" (Gemini, free with subscription) or "fal" (fal.ai, costs per image)
     batch_size: 10
     retry_count: 3
   video:

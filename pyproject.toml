@@ -12,7 +12,8 @@ dependencies = [
     "pyyaml",
     "google-cloud-storage",
     "yt-dlp",
-    "fal-client"
+    "fal-client",
+    "Pillow",
 ]
 
 [project.scripts]
