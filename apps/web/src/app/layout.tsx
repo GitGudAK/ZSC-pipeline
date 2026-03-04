@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Link from 'next/link';
-import { Film, LayoutDashboard, Settings, Video } from 'lucide-react';
+import { Film, LayoutDashboard, Settings, Video, Users } from 'lucide-react';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -37,6 +37,10 @@ export default function RootLayout({
             <Link href="/" className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-foreground bg-primary/10 hover:bg-primary/20 transition-colors">
               <LayoutDashboard className="w-4 h-4 text-primary" />
               Project Setup
+            </Link>
+            <Link href="/characters" className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+              <Users className="w-4 h-4" />
+              Characters
             </Link>
             <Link href="/storyboard" className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
               <Film className="w-4 h-4" />
