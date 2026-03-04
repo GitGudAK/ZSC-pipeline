@@ -123,19 +123,40 @@ def run(config: str, story: str, style_refs: str):
     logger.info(f"Pipeline complete! Output: {final_video}")
 
 @cli.command()
-def decompose():
-    """Decompose story into shots"""
-    pass
-
-@cli.command()
-def generate():
-    """Generate keyframes or video clips"""
-    pass
-
-@cli.command()
-def assemble():
-    """Assemble final video"""
-    pass
+@click.option("--config", required=True, help="Path to episode config YAML")
+def resume(config: str):
+    """Resume pipeline: generate videos for approved keyframes and stitch."""
+    logger.info("Resuming pipeline — video generation + stitching")
+    cfg = load_config(config)
+    gcp_client = GCPClient(cfg)
+    storage = StorageManager(cfg)
+    state_file = cfg.get("pipeline", {}).get("state_file", "output/pipeline_state.json")
+    
+    try:
+        episode = load_state(storage, state_file)
+    except FileNotFoundError:
+        logger.error("No pipeline state found. Run the full pipeline first.")
+        return
+    
+    # Generate videos only for shots that have keyframes but no clips
+    vid_gen = VideoGenerator(gcp_client, cfg)
+    for scene in episode.scenes:
+        for shot in scene.shots:
+            if shot.keyframe_path and not shot.clip_path:
+                logger.info(f"Generating video for approved shot {shot.id}...")
+                vid_gen.generate_from_keyframe(shot)
+                save_state(storage, episode, state_file)
+            elif shot.clip_path:
+                logger.info(f"Shot {shot.id} already has a clip, skipping.")
+    
+    # Stitch final video
+    stitcher = Stitcher(cfg)
+    final_video = stitcher.assemble(episode)
+    if final_video:
+        save_state(storage, episode, state_file)
+        logger.info(f"Resume complete! Output: {final_video}")
+    else:
+        logger.error("Stitching failed.")
 
 if __name__ == "__main__":
     cli()

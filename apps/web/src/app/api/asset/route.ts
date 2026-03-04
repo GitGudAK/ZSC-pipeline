@@ -48,12 +48,19 @@ export async function GET(request: Request) {
             contentType = 'video/mp4';
         }
 
-        return new NextResponse(data, {
-            headers: {
-                'Content-Type': contentType,
-                'Cache-Control': 'no-cache',
-            }
-        });
+        const isDownload = searchParams.get('download') === 'true';
+        const filename = absolutePath.split('/').pop() || 'download';
+
+        const headers: Record<string, string> = {
+            'Content-Type': contentType,
+            'Cache-Control': 'no-cache',
+        };
+
+        if (isDownload) {
+            headers['Content-Disposition'] = `attachment; filename="${filename}"`;
+        }
+
+        return new NextResponse(data, { headers });
     } catch (error) {
         console.error("Error serving asset:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
