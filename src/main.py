@@ -148,16 +148,8 @@ def run(config: str, story: str, style_refs: str):
         for shot in scene.shots:
             kf_gen.generate_pair(shot)
             save_state(storage, episode, state_file)
-            
-    vid_gen = VideoGenerator(gcp_client, cfg)
-    for scene in episode.scenes:
-        for shot in scene.shots:
-            vid_gen.generate_from_keyframe(shot)
-            save_state(storage, episode, state_file)
-            
-    stitcher = Stitcher(cfg)
-    final_video = stitcher.assemble(episode)
-    logger.info(f"Pipeline complete! Output: {final_video}")
+    
+    logger.info("Keyframe generation complete! Review in the Storyboard, then click 'Approve & Generate Video'.")
 
 @cli.command()
 @click.option("--config", required=True, help="Path to episode config YAML")
