@@ -47,7 +47,7 @@ class KeyframeGenerator:
             self.provider = self.PROVIDER_VERTEX  # default: use Google subscription
         
         # Vertex AI model for image generation
-        self.vertex_model = "gemini-3.1-flash-image-preview"
+        self.vertex_model = "gemini-2.5-flash-image-preview"
         
     def _load_character_image(self, char_name: str) -> Optional[Image.Image]:
         """Load a character reference as a PIL Image for Vertex AI."""
