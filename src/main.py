@@ -154,13 +154,7 @@ def run(config: str, story: str, style_refs: str, style_guide: str, style_settin
     episode.scenes = prompt_writer.write_prompts(episode.scenes, episode.characters)
     save_state(storage, episode, state_file)
     
-    kf_gen = KeyframeGenerator(gcp_client, cfg, character_refs=char_refs)
-    for scene in episode.scenes:
-        for shot in scene.shots:
-            kf_gen.generate_pair(shot)
-            save_state(storage, episode, state_file)
-    
-    logger.info("Keyframe generation complete! Review in the Storyboard, then click 'Approve & Generate Video'.")
+    logger.info("Prompt writing complete! Review prompts in the Storyboard, then click 'Generate All Keyframes'.")
 
 @cli.command()
 @click.option("--config", required=True, help="Path to episode config YAML")

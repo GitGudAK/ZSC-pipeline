@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Camera, RefreshCw, Play, Film, MessageCircle, Loader2, CheckCircle2, Download, X, ArrowRight, Users } from 'lucide-react';
+import { Camera, RefreshCw, Play, Film, MessageCircle, Loader2, CheckCircle2, Download, X, ArrowRight, Users, FileText, Sparkles, PenTool } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function Storyboard() {
@@ -10,6 +10,12 @@ export default function Storyboard() {
     const [job, setJob] = useState<any>(null);
     const [isApproving, setIsApproving] = useState(false);
     const [approveMessage, setApproveMessage] = useState('');
+
+    // Editable prompts in lightbox
+    const [editStartPrompt, setEditStartPrompt] = useState('');
+    const [editEndPrompt, setEditEndPrompt] = useState('');
+    const [isRegenerating, setIsRegenerating] = useState(false);
+    const [regenMessage, setRegenMessage] = useState('');
 
     useEffect(() => {
         const fetchPipeline = () => {
@@ -25,8 +31,11 @@ export default function Storyboard() {
 
     const shots = job?.scenes?.flatMap((scene: any) => scene.shots) || [];
 
-    const hasApprovedKeyframes = shots.some((s: any) => s.keyframe_path && !s.clip_path);
+    // Phase detection
+    const hasPromptsNoKeyframes = shots.some((s: any) => s.image_prompt && !s.keyframe_path);
+    const hasKeyframesNoClips = shots.some((s: any) => s.keyframe_path && !s.clip_path);
     const allHaveClips = shots.length > 0 && shots.every((s: any) => s.clip_path);
+    const allHaveKeyframes = shots.length > 0 && shots.every((s: any) => s.keyframe_path);
 
     const handleApproveAndGenerate = async () => {
         setIsApproving(true);
@@ -35,19 +44,49 @@ export default function Storyboard() {
             const res = await fetch('/api/pipeline/approve', { method: 'POST' });
             const data = await res.json();
             if (data.success) {
-                setApproveMessage('Video generation started! Check the Generation Queue for progress.');
+                setApproveMessage(data.message);
             } else {
-                setApproveMessage(data.error || 'Failed to start video generation.');
+                setApproveMessage(data.error || 'Failed to start generation.');
             }
         } catch (e) {
             console.error(e);
-            setApproveMessage('Error triggering video generation.');
+            setApproveMessage('Error triggering generation.');
         }
         setIsApproving(false);
     };
 
+    const handleRegenerateShot = async () => {
+        if (!viewingShot) return;
+        setIsRegenerating(true);
+        setRegenMessage('');
+        try {
+            const res = await fetch('/api/pipeline/regenerate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    shot_id: viewingShot.id,
+                    image_prompt: editStartPrompt,
+                    image_prompt_end: editEndPrompt,
+                }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setRegenMessage('Regenerating... will refresh automatically.');
+            } else {
+                setRegenMessage(data.error || 'Failed to regenerate.');
+            }
+        } catch (e) {
+            console.error(e);
+            setRegenMessage('Error regenerating keyframe.');
+        }
+        setIsRegenerating(false);
+    };
+
     const openViewer = (shot: any, idx: number) => {
         setViewingShot({ ...shot, displayIdx: idx });
+        setEditStartPrompt(shot.image_prompt || '');
+        setEditEndPrompt(shot.image_prompt_end || '');
+        setRegenMessage('');
     };
 
     const navigateShot = (direction: number) => {
@@ -55,41 +94,53 @@ export default function Storyboard() {
         const currentIdx = viewingShot.displayIdx;
         const nextIdx = currentIdx + direction;
         if (nextIdx >= 0 && nextIdx < shots.length) {
-            setViewingShot({ ...shots[nextIdx], displayIdx: nextIdx });
+            const nextShot = shots[nextIdx];
+            setViewingShot({ ...nextShot, displayIdx: nextIdx });
+            setEditStartPrompt(nextShot.image_prompt || '');
+            setEditEndPrompt(nextShot.image_prompt_end || '');
+            setRegenMessage('');
         }
     };
+
+    // Determine CTA button state
+    const getCtaButton = () => {
+        if (allHaveClips) {
+            return { label: 'Videos Complete', icon: <CheckCircle2 className="w-4 h-4" />, cls: 'bg-green-600 hover:bg-green-700 text-white' };
+        }
+        if (hasKeyframesNoClips) {
+            return { label: 'Approve & Generate Video', icon: <Play className="w-4 h-4" />, cls: 'bg-primary hover:bg-primary/90 text-primary-foreground' };
+        }
+        if (hasPromptsNoKeyframes) {
+            return { label: 'Generate All Keyframes', icon: <Sparkles className="w-4 h-4" />, cls: 'bg-primary hover:bg-primary/90 text-primary-foreground' };
+        }
+        return { label: 'Waiting for prompts...', icon: <Loader2 className="w-4 h-4 animate-spin" />, cls: 'bg-white/10 text-white/50 cursor-not-allowed' };
+    };
+
+    const cta = getCtaButton();
 
     return (
         <div className="max-w-6xl mx-auto space-y-6">
             <header className="flex items-center justify-between pb-4 border-b border-white/10">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-white">Storyboard Editor</h1>
-                    <p className="text-muted-foreground mt-1">Review and refine AI-generated shots before rendering.</p>
+                    <p className="text-muted-foreground mt-1">Review prompts and keyframes before rendering.</p>
                 </div>
                 <div className="flex gap-3 items-center">
                     {approveMessage && (
-                        <span className="text-xs text-primary animate-fade-in">{approveMessage}</span>
+                        <span className="text-xs text-primary animate-fade-in max-w-[200px] text-right">{approveMessage}</span>
                     )}
-                    <button className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg font-medium transition-colors text-sm flex items-center gap-2">
-                        <RefreshCw className="w-4 h-4" /> Regenerate All
-                    </button>
                     <button
                         onClick={handleApproveAndGenerate}
-                        disabled={isApproving || (!hasApprovedKeyframes && !shots.length)}
+                        disabled={isApproving || (!hasPromptsNoKeyframes && !hasKeyframesNoClips)}
                         className={cn(
-                            "px-5 py-2 rounded-lg font-medium transition-colors text-sm shadow-[0_0_20px_-5px_rgba(var(--primary),0.5)] flex items-center gap-2",
-                            allHaveClips
-                                ? "bg-green-600 hover:bg-green-700 text-white"
-                                : "bg-primary hover:bg-primary/90 text-primary-foreground",
-                            "disabled:opacity-50"
+                            "px-5 py-2 rounded-lg font-medium transition-colors text-sm shadow-[0_0_20px_-5px_rgba(var(--primary),0.5)] flex items-center gap-2 disabled:opacity-50",
+                            cta.cls
                         )}
                     >
                         {isApproving ? (
                             <><Loader2 className="w-4 h-4 animate-spin" /> Starting...</>
-                        ) : allHaveClips ? (
-                            <><CheckCircle2 className="w-4 h-4" /> Videos Complete</>
                         ) : (
-                            <><Play className="w-4 h-4" /> Approve &amp; Generate Video</>
+                            <>{cta.icon} {cta.label}</>
                         )}
                     </button>
                 </div>
@@ -116,6 +167,17 @@ export default function Storyboard() {
                 </div>
             )}
 
+            {/* Phase Indicator */}
+            {hasPromptsNoKeyframes && !allHaveKeyframes && (
+                <div className="glass-card p-4 flex items-center gap-3 border border-primary/20 bg-primary/5">
+                    <FileText className="w-5 h-5 text-primary" />
+                    <div>
+                        <p className="text-sm font-medium text-white">Prompts ready for review</p>
+                        <p className="text-xs text-white/50">Click any shot to review and edit its image generation prompts. When ready, click &quot;Generate All Keyframes&quot;.</p>
+                    </div>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pt-4">
                 {shots.map((shot: any, idx: number) => (
                     <div
@@ -126,7 +188,7 @@ export default function Storyboard() {
                             selectedShot === shot.id && "ring-2 ring-primary border-transparent"
                         )}
                     >
-                        {/* Thumbnail Area — Start + End Frames */}
+                        {/* Thumbnail Area */}
                         <div className="relative aspect-video bg-white/5 border-b border-white/10 flex flex-col justify-end">
                             {shot.keyframe_path && shot.keyframe_end_path ? (
                                 <div className="absolute inset-0 flex">
@@ -149,6 +211,11 @@ export default function Storyboard() {
                             ) : shot.keyframe_path ? (
                                 /* eslint-disable-next-line @next/next/no-img-element */
                                 <img src={`/api/asset?path=${encodeURIComponent(shot.keyframe_path)}`} alt={shot.description} className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                            ) : shot.image_prompt ? (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center text-primary/60 group-hover:text-primary/80 gap-2 p-4">
+                                    <FileText className="w-6 h-6" />
+                                    <span className="text-[10px] font-medium text-center line-clamp-3 text-white/40">{shot.image_prompt.substring(0, 100)}...</span>
+                                </div>
                             ) : (
                                 <div className="absolute inset-0 flex items-center justify-center text-white/20 group-hover:text-white/40">
                                     <Camera className="w-8 h-8" />
@@ -159,6 +226,15 @@ export default function Storyboard() {
                                 <div className="absolute top-2 right-2 z-10">
                                     <span className="text-xs font-medium px-2 py-1 bg-green-500/90 backdrop-blur-md rounded text-white flex items-center gap-1">
                                         <CheckCircle2 className="w-3 h-3" /> Video Ready
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Badge: prompt ready but no keyframe */}
+                            {shot.image_prompt && !shot.keyframe_path && !shot.clip_path && (
+                                <div className="absolute top-2 left-2 z-10">
+                                    <span className="text-[10px] font-semibold px-2 py-1 bg-primary/80 backdrop-blur-md rounded text-white flex items-center gap-1">
+                                        <PenTool className="w-2.5 h-2.5" /> Prompt Ready
                                     </span>
                                 </div>
                             )}
@@ -211,11 +287,11 @@ export default function Storyboard() {
                     onClick={() => setViewingShot(null)}
                 >
                     <div
-                        className="relative w-full max-w-5xl bg-[#0c0c14] border border-white/10 rounded-2xl overflow-hidden shadow-2xl shadow-black/80"
+                        className="relative w-full max-w-5xl bg-[#0c0c14] border border-white/10 rounded-2xl overflow-hidden shadow-2xl shadow-black/80 max-h-[90vh] overflow-y-auto"
                         onClick={e => e.stopPropagation()}
                     >
                         {/* Header */}
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 sticky top-0 bg-[#0c0c14] z-10">
                             <div className="flex items-center gap-3">
                                 <span className="text-xs font-bold px-3 py-1 bg-primary/20 text-primary rounded-full">
                                     Shot {viewingShot.displayIdx + 1} of {shots.length}
@@ -315,8 +391,57 @@ export default function Storyboard() {
                             )}
                         </div>
 
+                        {/* =================== EDITABLE PROMPTS =================== */}
+                        <div className="px-6 py-5 border-t border-white/10 space-y-4 bg-black/20">
+                            <h4 className="text-xs font-semibold uppercase tracking-wider text-primary/80 flex items-center gap-2">
+                                <PenTool className="w-3.5 h-3.5" />
+                                Image Generation Prompts
+                            </h4>
+
+                            <div className="space-y-3">
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-medium uppercase tracking-wider text-white/40">Start Frame Prompt</label>
+                                    <textarea
+                                        value={editStartPrompt}
+                                        onChange={e => setEditStartPrompt(e.target.value)}
+                                        rows={4}
+                                        className="w-full rounded-lg bg-black/60 border border-white/10 p-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none placeholder:text-white/20 transition-all font-mono leading-relaxed text-white/80"
+                                        placeholder="No start frame prompt yet..."
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-medium uppercase tracking-wider text-white/40">End Frame Prompt</label>
+                                    <textarea
+                                        value={editEndPrompt}
+                                        onChange={e => setEditEndPrompt(e.target.value)}
+                                        rows={4}
+                                        className="w-full rounded-lg bg-black/60 border border-white/10 p-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none placeholder:text-white/20 transition-all font-mono leading-relaxed text-white/80"
+                                        placeholder="No end frame prompt yet..."
+                                    />
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={handleRegenerateShot}
+                                        disabled={isRegenerating || (!editStartPrompt && !editEndPrompt)}
+                                        className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                                    >
+                                        {isRegenerating ? (
+                                            <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Regenerating...</>
+                                        ) : (
+                                            <><RefreshCw className="w-3.5 h-3.5" /> Regenerate Keyframe</>
+                                        )}
+                                    </button>
+                                    {regenMessage && (
+                                        <span className="text-xs text-primary/80">{regenMessage}</span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Navigation Footer */}
-                        <div className="flex items-center justify-between px-6 py-3 border-t border-white/10 bg-white/[0.02]">
+                        <div className="flex items-center justify-between px-6 py-3 border-t border-white/10 bg-white/[0.02] sticky bottom-0">
                             <button
                                 onClick={() => navigateShot(-1)}
                                 disabled={viewingShot.displayIdx === 0}
@@ -338,4 +463,3 @@ export default function Storyboard() {
         </div>
     );
 }
-
