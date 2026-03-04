@@ -53,7 +53,8 @@ export async function POST(request: Request) {
             synopsis: "Extracting story and generating scene logic...",
             characters: [],
             scenes: [],
-            style_guide: styleGuide || ""
+            style_guide: styleGuide || "",
+            style_setting: styleSetting || ""
         };
         await writeFile(PIPELINE_STATE_FILE, JSON.stringify(initialState, null, 2));
 

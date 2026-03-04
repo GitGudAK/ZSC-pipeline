@@ -55,12 +55,15 @@ export default function Dashboard() {
                         </div>
 
                         {/* Master Style Guide Info Panel */}
-                        {job.style_guide && (
+                        {(job.style_guide || job.style_setting) && (
                             <div className="px-6 py-5 border-b border-white/5 bg-black/40">
                                 <h4 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                                     <Activity className="w-4 h-4" />
-                                    Extracted Master Style
+                                    Approved Style Guide
                                 </h4>
+                                {job.style_setting && (
+                                    <p className="text-xs text-primary/70 mb-2 pl-4 font-medium uppercase tracking-wide">Setting: {job.style_setting}</p>
+                                )}
                                 <p className="text-sm text-white/80 leading-relaxed italic border-l-2 border-primary/50 pl-4 py-1">
                                     &quot;{job.style_guide}&quot;
                                 </p>
