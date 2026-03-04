@@ -23,8 +23,8 @@ class VideoGenerator:
         self.storage = StorageManager(config)
         self.max_retries = config.get("generation", {}).get("video", {}).get("retry_count", 3)
         self.timeout_seconds = 600  # 10 minute timeout per video call
-        # Default model: Seedance 1.5 Pro (supports start+end frames, native audio, 4-12s)
-        self.model = "fal-ai/bytedance/seedance/v1.5/pro/image-to-video"
+        # Default model: Hailuo-02 (supports start+end frames, 6/10s, 768p)
+        self.model = "fal-ai/minimax/hailuo-02/standard/image-to-video"
         
     def _read_image_as_data_uri(self, path: str) -> Optional[str]:
         """Read a local or GCS image and return as a data URI."""
@@ -68,7 +68,7 @@ class VideoGenerator:
         if shot.keyframe_end_path:
             end_image_url = self._read_image_as_data_uri(shot.keyframe_end_path)
         
-        logger.info(f"Generating video for shot {shot.id} using Seedance 1.5 Pro "
+        logger.info(f"Generating video for shot {shot.id} using Hailuo-02 "
                      f"({'start+end' if end_image_url else 'start only'})...")
             
         for attempt in range(1, self.max_retries + 1):
@@ -80,10 +80,8 @@ class VideoGenerator:
                     arguments = {
                         "prompt": shot.video_prompt,
                         "image_url": start_image_url,
-                        "aspect_ratio": "16:9",
-                        "resolution": "720p",
-                        "duration": str(min(int(shot.duration_seconds), 12)),
-                        "generate_audio": True,
+                        "resolution": "768P",
+                        "duration": "6",
                     }
                     
                     if end_image_url:
