@@ -23,6 +23,8 @@ class VideoGenerator:
         self.storage = StorageManager(config)
         self.max_retries = config.get("generation", {}).get("video", {}).get("retry_count", 3)
         self.timeout_seconds = 600  # 10 minute timeout per video call
+        # Default model: Seedance 1.5 Pro (supports start+end frames, native audio, 4-12s)
+        self.model = "fal-ai/bytedance/seedance/v1.5/pro/image-to-video"
         
     def _read_image_as_data_uri(self, path: str) -> Optional[str]:
         """Read a local or GCS image and return as a data URI."""
@@ -66,13 +68,8 @@ class VideoGenerator:
         if shot.keyframe_end_path:
             end_image_url = self._read_image_as_data_uri(shot.keyframe_end_path)
         
-        # Use Hailuo-02 if we have end frame, otherwise fall back to video-01
-        if end_image_url:
-            model = "fal-ai/minimax/hailuo-02/standard/image-to-video"
-            logger.info(f"Generating video for shot {shot.id} using Hailuo-02 (start + end frames)...")
-        else:
-            model = "fal-ai/minimax/video-01"
-            logger.info(f"Generating video for shot {shot.id} using video-01 (start frame only)...")
+        logger.info(f"Generating video for shot {shot.id} using Seedance 1.5 Pro "
+                     f"({'start+end' if end_image_url else 'start only'})...")
             
         for attempt in range(1, self.max_retries + 1):
             try:
@@ -83,14 +80,16 @@ class VideoGenerator:
                     arguments = {
                         "prompt": shot.video_prompt,
                         "image_url": start_image_url,
+                        "aspect_ratio": "16:9",
+                        "resolution": "720p",
+                        "duration": str(min(int(shot.duration_seconds), 12)),
+                        "generate_audio": True,
                     }
                     
-                    if end_image_url and model.startswith("fal-ai/minimax/hailuo-02"):
+                    if end_image_url:
                         arguments["end_image_url"] = end_image_url
-                        arguments["resolution"] = "768P"
-                        arguments["duration"] = "6"
                     
-                    result = fal_client.run(model, arguments=arguments)
+                    result = fal_client.run(self.model, arguments=arguments)
                 finally:
                     signal.alarm(0)
                     signal.signal(signal.SIGALRM, old_handler)
@@ -104,7 +103,7 @@ class VideoGenerator:
                     filename = f"clips/{shot.id}.mp4"
                     saved_path = self.storage.write_bytes(vid_resp.content, filename)
                     shot.clip_path = saved_path
-                    logger.info(f"Saved clip for shot {shot.id} to {saved_path}")
+                    logger.info(f"Saved Seedance clip for shot {shot.id} to {saved_path}")
                     return shot.clip_path
                 else:
                     logger.error(f"No video returned for shot {shot.id}: {result}")
