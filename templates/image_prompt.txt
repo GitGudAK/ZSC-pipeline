@@ -2,4 +2,4 @@
 {character_descriptions}
 {shot_description}
 Location: {location}, Time: {time_of_day}, Mood: {mood}
-Additional instructions: create a single keyframe image matching this description.
+Additional instructions: create a single keyframe image in 16:9 widescreen landscape format. Full width, cinematic composition.

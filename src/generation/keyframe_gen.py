@@ -233,9 +233,13 @@ class KeyframeGenerator:
                         result = fal_client.run(model, arguments={
                             "prompt": prompt,
                             "image_urls": char_image_uris,
+                            "image_size": "landscape_16_9",
                         })
                     else:
-                        result = fal_client.run(model, arguments={"prompt": prompt})
+                        result = fal_client.run(model, arguments={
+                            "prompt": prompt,
+                            "image_size": "landscape_16_9",
+                        })
                 finally:
                     signal.alarm(0)
                     signal.signal(signal.SIGALRM, old_handler)
