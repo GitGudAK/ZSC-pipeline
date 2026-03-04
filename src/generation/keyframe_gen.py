@@ -60,7 +60,96 @@ class KeyframeGenerator:
                 return char_name
         return None
         
+    def generate_pair(self, shot: Shot) -> tuple:
+        """Generate both start and end keyframes for a shot."""
+        import requests
+        import fal_client
+        
+        if not shot.image_prompt:
+            logger.warning(f"Shot {shot.id} has no image_prompt. Skipping pair.")
+            return shot.keyframe_path, shot.keyframe_end_path
+        
+        if not os.environ.get("FAL_KEY"):
+            logger.error("FAL_KEY not set.")
+            return shot.keyframe_path, shot.keyframe_end_path
+        
+        primary_char = self._find_primary_character(shot)
+        char_data_uri = None
+        if primary_char:
+            char_data_uri = self._get_character_data_uri(primary_char)
+        
+        # Generate start frame
+        logger.info(f"Generating START keyframe for shot {shot.id}...")
+        start_path = self._generate_single(
+            shot, shot.image_prompt, f"keyframes/{shot.id}_start.jpg",
+            char_data_uri, primary_char, requests, fal_client
+        )
+        if start_path:
+            shot.keyframe_path = start_path
+        
+        # Generate end frame
+        if shot.image_prompt_end:
+            logger.info(f"Generating END keyframe for shot {shot.id}...")
+            end_path = self._generate_single(
+                shot, shot.image_prompt_end, f"keyframes/{shot.id}_end.jpg",
+                char_data_uri, primary_char, requests, fal_client
+            )
+            if end_path:
+                shot.keyframe_end_path = end_path
+        
+        return shot.keyframe_path, shot.keyframe_end_path
+
+    def _generate_single(self, shot: Shot, prompt: str, filename: str,
+                         char_data_uri, char_name, requests, fal_client) -> Optional[str]:
+        """Generate a single keyframe image."""
+        model = "fal-ai/instant-character" if char_data_uri else "fal-ai/nano-banana-2"
+        
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(self.timeout_seconds)
+                
+                try:
+                    if char_data_uri:
+                        result = fal_client.run(model, arguments={
+                            "prompt": prompt,
+                            "image_url": char_data_uri,
+                            "image_size": "landscape_16_9",
+                            "scale": 1,
+                            "guidance_scale": 3.5,
+                            "num_inference_steps": 28,
+                            "output_format": "jpeg"
+                        })
+                    else:
+                        result = fal_client.run(model, arguments={"prompt": prompt})
+                finally:
+                    signal.alarm(0)
+                    signal.signal(signal.SIGALRM, old_handler)
+                
+                if "images" in result and result["images"]:
+                    image_url = result["images"][0]["url"]
+                    img_resp = requests.get(image_url, timeout=60)
+                    img_resp.raise_for_status()
+                    saved_path = self.storage.write_bytes(img_resp.content, filename)
+                    logger.info(f"Saved keyframe to {saved_path} (model: {model})")
+                    return saved_path
+                else:
+                    logger.error(f"No image returned for {filename}: {result}")
+                    
+            except TimeoutError:
+                logger.warning(f"Attempt {attempt}/{self.max_retries} timed out for {filename}")
+                if attempt < self.max_retries:
+                    time.sleep(5 * attempt)
+                    
+            except Exception as e:
+                logger.warning(f"Attempt {attempt}/{self.max_retries} failed for {filename}: {e}")
+                if attempt < self.max_retries:
+                    time.sleep(5 * attempt)
+        
+        return None
+        
     def generate(self, shot: Shot) -> str:
+        """Generate only the start keyframe (legacy single-frame mode)."""
         if not shot.image_prompt:
             logger.warning(f"Shot {shot.id} has no image_prompt. Skipping.")
             return shot.keyframe_path

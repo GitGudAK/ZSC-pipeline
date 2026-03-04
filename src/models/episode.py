@@ -27,11 +27,13 @@ class Shot(BaseModel):
     image_prompt: Optional[str] = None  
     video_prompt: Optional[str] = None  
     keyframe_path: Optional[str] = None 
+    keyframe_end_path: Optional[str] = None   # end frame keyframe
     clip_path: Optional[str] = None     
     audio_path: Optional[str] = None    
     status: str = "pending"             
     qa_score: Optional[float] = None    
     qa_notes: Optional[str] = None      
+    image_prompt_end: Optional[str] = None    # end frame prompt
 
 class Scene(BaseModel):
     id: str                             

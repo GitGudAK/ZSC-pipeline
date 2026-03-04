@@ -146,7 +146,7 @@ def run(config: str, story: str, style_refs: str):
     kf_gen = KeyframeGenerator(gcp_client, cfg, character_refs=char_refs)
     for scene in episode.scenes:
         for shot in scene.shots:
-            kf_gen.generate(shot)
+            kf_gen.generate_pair(shot)
             save_state(storage, episode, state_file)
             
     vid_gen = VideoGenerator(gcp_client, cfg)

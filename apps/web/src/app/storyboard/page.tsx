@@ -124,9 +124,30 @@ export default function Storyboard() {
                             selectedShot === shot.id && "ring-2 ring-primary border-transparent"
                         )}
                     >
-                        {/* Thumbnail Area */}
+                        {/* Thumbnail Area — Start + End Frames */}
                         <div className="relative aspect-video bg-white/5 border-b border-white/10 flex flex-col justify-end">
-                            {shot.keyframe_path ? (
+                            {shot.keyframe_path && shot.keyframe_end_path ? (
+                                /* Dual frame: start + end side by side */
+                                <div className="absolute inset-0 flex">
+                                    <div className="relative w-1/2 border-r border-white/20">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={`/api/asset?path=${encodeURIComponent(shot.keyframe_path)}`} alt="Start" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                                        <span className="absolute top-1.5 left-1.5 text-[10px] font-semibold px-1.5 py-0.5 bg-black/70 backdrop-blur-sm rounded text-white/80">Start</span>
+                                    </div>
+                                    <div className="relative w-1/2">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={`/api/asset?path=${encodeURIComponent(shot.keyframe_end_path)}`} alt="End" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                                        <span className="absolute top-1.5 right-1.5 text-[10px] font-semibold px-1.5 py-0.5 bg-black/70 backdrop-blur-sm rounded text-white/80">End</span>
+                                    </div>
+                                    {/* Arrow indicator */}
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <div className="w-6 h-6 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                                            <Play className="w-3 h-3 text-white/80" />
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : shot.keyframe_path ? (
+                                /* Single frame only */
                                 /* eslint-disable-next-line @next/next/no-img-element */
                                 <img src={`/api/asset?path=${encodeURIComponent(shot.keyframe_path)}`} alt={shot.description} className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                             ) : (
@@ -137,7 +158,7 @@ export default function Storyboard() {
 
                             {/* Status badge */}
                             {shot.clip_path && (
-                                <div className="absolute top-2 right-2">
+                                <div className="absolute top-2 right-2 z-10">
                                     <span className="text-xs font-medium px-2 py-1 bg-green-500/90 backdrop-blur-md rounded text-white flex items-center gap-1">
                                         <CheckCircle2 className="w-3 h-3" /> Video Ready
                                     </span>

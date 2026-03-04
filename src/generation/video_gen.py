@@ -24,6 +24,26 @@ class VideoGenerator:
         self.max_retries = config.get("generation", {}).get("video", {}).get("retry_count", 3)
         self.timeout_seconds = 600  # 10 minute timeout per video call
         
+    def _read_image_as_data_uri(self, path: str) -> Optional[str]:
+        """Read a local or GCS image and return as a data URI."""
+        try:
+            if path.startswith("gs://"):
+                from google.cloud import storage
+                bucket_name = path.split("/")[2]
+                blob_name = "/".join(path.split("/")[3:])
+                storage_client = storage.Client()
+                bucket = storage_client.bucket(bucket_name)
+                blob = bucket.blob(blob_name)
+                img_data = blob.download_as_bytes()
+            else:
+                with open(path, "rb") as f:
+                    img_data = f.read()
+            encoded = base64.b64encode(img_data).decode("utf-8")
+            return f"data:image/jpeg;base64,{encoded}"
+        except Exception as e:
+            logger.error(f"Failed to read image at {path}: {e}")
+            return None
+        
     def generate_from_keyframe(self, shot: Shot) -> str:
         if not shot.video_prompt or not shot.keyframe_path:
             logger.warning(f"Shot {shot.id} missing video_prompt or keyframe. Skipping.")
@@ -32,47 +52,47 @@ class VideoGenerator:
         import requests
         import fal_client
         
-        logger.info(f"Generating video for shot {shot.id} using fal.ai (fal-ai/minimax/video-01)...")
-        
         if not os.environ.get("FAL_KEY"):
             logger.error("FAL_KEY environment variable is not set. Cannot use fal.ai")
             return shot.clip_path
         
-        # Read keyframe as base64 once
-        try:
-            if shot.keyframe_path.startswith("gs://"):
-                from google.cloud import storage
-                bucket_name = shot.keyframe_path.split("/")[2]
-                blob_name = "/".join(shot.keyframe_path.split("/")[3:])
-                storage_client = storage.Client()
-                bucket = storage_client.bucket(bucket_name)
-                blob = bucket.blob(blob_name)
-                img_data = blob.download_as_bytes()
-            else:
-                with open(shot.keyframe_path, "rb") as f:
-                    img_data = f.read()
-            encoded_image = base64.b64encode(img_data).decode("utf-8")
-            image_url = f"data:image/jpeg;base64,{encoded_image}"
-        except Exception as e:
-            logger.error(f"Failed to read keyframe for shot {shot.id}: {e}")
+        # Read start frame
+        start_image_url = self._read_image_as_data_uri(shot.keyframe_path)
+        if not start_image_url:
             return shot.clip_path
+        
+        # Read end frame (optional)
+        end_image_url = None
+        if shot.keyframe_end_path:
+            end_image_url = self._read_image_as_data_uri(shot.keyframe_end_path)
+        
+        # Use Hailuo-02 if we have end frame, otherwise fall back to video-01
+        if end_image_url:
+            model = "fal-ai/minimax/hailuo-02/standard/image-to-video"
+            logger.info(f"Generating video for shot {shot.id} using Hailuo-02 (start + end frames)...")
+        else:
+            model = "fal-ai/minimax/video-01"
+            logger.info(f"Generating video for shot {shot.id} using video-01 (start frame only)...")
             
         for attempt in range(1, self.max_retries + 1):
             try:
-                # Set alarm timeout to prevent infinite hangs
                 old_handler = signal.signal(signal.SIGALRM, timeout_handler)
                 signal.alarm(self.timeout_seconds)
                 
                 try:
-                    result = fal_client.run(
-                        "fal-ai/minimax/video-01",
-                        arguments={
-                            "prompt": shot.video_prompt,
-                            "image_url": image_url
-                        }
-                    )
+                    arguments = {
+                        "prompt": shot.video_prompt,
+                        "image_url": start_image_url,
+                    }
+                    
+                    if end_image_url and model.startswith("fal-ai/minimax/hailuo-02"):
+                        arguments["end_image_url"] = end_image_url
+                        arguments["resolution"] = "768P"
+                        arguments["duration"] = "6"
+                    
+                    result = fal_client.run(model, arguments=arguments)
                 finally:
-                    signal.alarm(0)  # Cancel the alarm
+                    signal.alarm(0)
                     signal.signal(signal.SIGALRM, old_handler)
                 
                 if "video" in result and result["video"] and "url" in result["video"]:
@@ -84,10 +104,10 @@ class VideoGenerator:
                     filename = f"clips/{shot.id}.mp4"
                     saved_path = self.storage.write_bytes(vid_resp.content, filename)
                     shot.clip_path = saved_path
-                    logger.info(f"Saved fal.ai clip for shot {shot.id} to {saved_path}")
+                    logger.info(f"Saved clip for shot {shot.id} to {saved_path}")
                     return shot.clip_path
                 else:
-                    logger.error(f"No video returned from fal.ai for shot {shot.id}: {result}")
+                    logger.error(f"No video returned for shot {shot.id}: {result}")
                     
             except TimeoutError:
                 logger.warning(f"Attempt {attempt}/{self.max_retries} timed out after {self.timeout_seconds}s for shot {shot.id}")
@@ -101,7 +121,7 @@ class VideoGenerator:
             except Exception as e:
                 logger.warning(f"Attempt {attempt}/{self.max_retries} failed for shot {shot.id}: {e}")
                 if attempt < self.max_retries:
-                    wait = 10 * attempt  # 10s, 20s, 30s
+                    wait = 10 * attempt
                     logger.info(f"Retrying in {wait}s...")
                     time.sleep(wait)
                 else:

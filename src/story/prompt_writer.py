@@ -55,5 +55,16 @@ class PromptWriter:
                     shot_type=shot.shot_type
                 ).strip()
                 
+                # Format end-frame prompt (scene after camera movement / action completes)
+                end_description = f"END OF SHOT — After {shot.camera_movement} has completed. {shot.description} The action has reached its conclusion."
+                shot.image_prompt_end = self.image_prompt_template.format(
+                    style_guide=f"STYLE: {style_guide}",
+                    character_descriptions=char_context,
+                    shot_description=f"ACTION: {end_description}",
+                    location=shot.location,
+                    time_of_day=shot.time_of_day,
+                    mood=shot.emotion
+                ).strip()
+                
         logger.info(f"Successfully wrote prompts for all shots in {len(scenes)} scenes.")
         return scenes
