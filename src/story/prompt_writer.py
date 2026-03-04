@@ -18,16 +18,19 @@ class PromptWriter:
         style_guide = self.config.get("style", {}).get("guide", "")
         
         # Create a lookup for character descriptions
-        char_lookup = {c.name.lower(): c.description for c in characters}
+        char_lookup = {c.name.lower(): c for c in characters}
         
         for scene in scenes:
             for shot in scene.shots:
                 # Include descriptions only for characters present in the shot
                 shot_chars = []
                 for char_name in shot.characters_present:
-                    desc = char_lookup.get(char_name.lower(), "")
-                    if desc:
-                        shot_chars.append(f"{char_name}: {desc}")
+                    char = char_lookup.get(char_name.lower())
+                    if char:
+                        desc_parts = [f"{char.name}: {char.description}"]
+                        if char.reference_images:
+                            desc_parts.append("(visual reference provided — maintain character identity)")
+                        shot_chars.append(" ".join(desc_parts))
                 
                 char_context = "\\n".join(shot_chars)
                 if char_context:

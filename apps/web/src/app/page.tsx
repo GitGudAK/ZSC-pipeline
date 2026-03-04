@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Sparkles, Wand2, UploadCloud, X, FileImage, FileVideo, Youtube, Save, Trash2, FolderOpen, Loader2 } from 'lucide-react';
+import { Sparkles, Wand2, UploadCloud, X, FileImage, FileVideo, Youtube, Save, Trash2, FolderOpen, Loader2, UserPlus, Users } from 'lucide-react';
 
 interface Project {
   name: string;
@@ -11,6 +11,13 @@ interface Project {
   saved_at: string;
 }
 
+interface CharacterRef {
+  name: string;
+  description: string;
+  imagePath: string;
+  fileName: string;
+}
+
 export default function Home() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [styleRefs, setStyleRefs] = useState<File[]>([]);
@@ -18,19 +25,76 @@ export default function Home() {
   const [youtubeInput, setYoutubeInput] = useState("");
   const [story, setStory] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const charFileRef = useRef<HTMLInputElement>(null);
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [projectName, setProjectName] = useState("");
   const [projectAction, setProjectAction] = useState("");
 
-  useEffect(() => { fetchProjects(); }, []);
+  // Character state
+  const [characters, setCharacters] = useState<CharacterRef[]>([]);
+  const [showCharDialog, setShowCharDialog] = useState(false);
+  const [charName, setCharName] = useState("");
+  const [charDesc, setCharDesc] = useState("");
+  const [charFile, setCharFile] = useState<File | null>(null);
+  const [charPreview, setCharPreview] = useState("");
+  const [charUploading, setCharUploading] = useState(false);
+
+  useEffect(() => { fetchProjects(); fetchCharacters(); }, []);
 
   const fetchProjects = async () => {
     try {
       const res = await fetch('/api/projects');
       const data = await res.json();
       setProjects(data.projects || []);
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchCharacters = async () => {
+    try {
+      const res = await fetch('/api/characters');
+      const data = await res.json();
+      setCharacters(data.characters || []);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleCharFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setCharFile(file);
+      setCharPreview(URL.createObjectURL(file));
+      setShowCharDialog(true);
+    }
+  };
+
+  const handleCharUpload = async () => {
+    if (!charFile || !charName.trim()) return;
+    setCharUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('name', charName.trim());
+      formData.append('description', charDesc.trim());
+      formData.append('image', charFile);
+      const res = await fetch('/api/characters', { method: 'POST', body: formData });
+      if ((await res.json()).success) {
+        setShowCharDialog(false);
+        setCharName(''); setCharDesc(''); setCharFile(null); setCharPreview('');
+        fetchCharacters();
+      }
+    } catch (e) { console.error(e); }
+    setCharUploading(false);
+  };
+
+  const handleCharDelete = async (name: string) => {
+    if (!confirm(`Remove character "${name}"?`)) return;
+    try {
+      await fetch('/api/characters', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      fetchCharacters();
     } catch (e) { console.error(e); }
   };
 
@@ -179,11 +243,111 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Aesthetic & Style (Multimodal) */}
+        {/* Character References */}
         <div className="glass-card p-6 space-y-4 shadow-xl shadow-black/50">
           <div className="space-y-1">
             <h2 className="text-xl font-semibold flex items-center gap-2">
               <span className="flex h-8 w-8 rounded-full bg-primary/20 text-primary items-center justify-center text-sm">2</span>
+              Characters
+            </h2>
+            <p className="text-sm text-muted-foreground pl-10">Upload reference images for each character. The AI will maintain their appearance across all shots.</p>
+          </div>
+
+          <div className="pl-10 space-y-4">
+            <input
+              type="file"
+              ref={charFileRef}
+              onChange={handleCharFileSelect}
+              className="hidden"
+              accept="image/*"
+            />
+
+            {characters.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {characters.map((c) => (
+                  <div key={c.name} className="group relative rounded-xl border border-white/10 bg-black/40 overflow-hidden hover:border-primary/50 transition-all">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/api/asset?path=${encodeURIComponent(c.imagePath)}`}
+                      alt={c.name}
+                      className="w-full aspect-square object-cover"
+                    />
+                    <div className="p-3 space-y-1">
+                      <p className="text-sm font-semibold text-white flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-primary" />
+                        {c.name}
+                      </p>
+                      {c.description && <p className="text-xs text-white/50 line-clamp-2">{c.description}</p>}
+                    </div>
+                    <button
+                      onClick={() => handleCharDelete(c.name)}
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 bg-black/70 hover:bg-red-500/80 text-white rounded-full p-1.5 transition-all"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              onClick={() => charFileRef.current?.click()}
+              className="w-full rounded-xl border-2 border-dashed border-white/20 bg-black/30 hover:bg-black/50 p-6 flex flex-col items-center gap-2 transition-all text-white/40 hover:text-white cursor-pointer"
+            >
+              <UserPlus className="w-8 h-8" />
+              <span className="text-sm font-medium">Add Character Reference</span>
+              <span className="text-xs text-white/30">Upload an image, then name and describe the character</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Character Labeling Dialog */}
+        {showCharDialog && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center" onClick={() => { setShowCharDialog(false); setCharFile(null); setCharPreview(''); }}>
+            <div className="glass-card p-6 w-full max-w-md space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold text-white">Who is this character?</h3>
+
+              {charPreview && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={charPreview} alt="Preview" className="w-32 h-32 rounded-xl object-cover mx-auto border-2 border-primary/30" />
+              )}
+
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={charName}
+                  onChange={e => setCharName(e.target.value)}
+                  placeholder="Character name (e.g. Hana)"
+                  className="w-full bg-black/50 border border-white/10 rounded-lg py-2.5 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all placeholder:text-white/30"
+                  autoFocus
+                />
+                <textarea
+                  value={charDesc}
+                  onChange={e => setCharDesc(e.target.value)}
+                  placeholder="Describe their appearance (e.g. ghostly girl with long cherry blossom pink hair, translucent skin, wearing a white kimono)"
+                  className="w-full h-24 bg-black/50 border border-white/10 rounded-lg py-2.5 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all placeholder:text-white/30"
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button onClick={() => { setShowCharDialog(false); setCharFile(null); setCharPreview(''); }} className="px-4 py-2 text-sm text-white/70 hover:text-white transition-colors">Cancel</button>
+                <button
+                  onClick={handleCharUpload}
+                  disabled={!charName.trim() || charUploading}
+                  className="px-5 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  {charUploading ? 'Saving...' : 'Save Character'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Aesthetic & Style (Multimodal) */}
+        <div className="glass-card p-6 space-y-4 shadow-xl shadow-black/50">
+          <div className="space-y-1">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <span className="flex h-8 w-8 rounded-full bg-primary/20 text-primary items-center justify-center text-sm">3</span>
               Visual Style References
             </h2>
             <p className="text-sm text-muted-foreground pl-10">Upload character art, moodboards, or video clips. Our AI will automatically extract the master style.</p>

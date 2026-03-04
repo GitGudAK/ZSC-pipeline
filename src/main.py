@@ -3,10 +3,10 @@ import json
 import logging
 import click
 import yaml
-from typing import Optional
+from typing import Optional, Dict
 
 from src.utils.gcp_client import GCPClient
-from src.models.episode import Episode, Scene
+from src.models.episode import Episode, Scene, Character
 from src.story.decomposer import StoryDecomposer
 from src.story.prompt_writer import PromptWriter
 from src.generation.keyframe_gen import KeyframeGenerator
@@ -54,6 +54,36 @@ def load_state(storage: StorageManager, path: str) -> Episode:
         return Episode.model_validate(data)
     raise FileNotFoundError(f"State file not found at {path}")
 
+def load_character_refs() -> tuple[list, Dict[str, str]]:
+    """Load character manifest from output/characters/manifest.json.
+    Returns (characters_list, char_refs_dict).
+    characters_list: list of Character model dicts for Episode.
+    char_refs_dict: name(lowercase) → image_path for KeyframeGenerator.
+    """
+    manifest_path = os.path.join("output", "characters", "manifest.json")
+    if not os.path.exists(manifest_path):
+        return [], {}
+    
+    try:
+        with open(manifest_path, "r") as f:
+            entries = json.load(f)
+    except Exception:
+        return [], {}
+    
+    characters = []
+    char_refs = {}
+    for entry in entries:
+        name = entry.get("name", "")
+        desc = entry.get("description", "")
+        img_path = entry.get("imagePath", "")
+        
+        characters.append(Character(name=name, description=desc, reference_images=[img_path]))
+        if img_path:
+            char_refs[name.lower()] = img_path
+    
+    logger.info(f"Loaded {len(char_refs)} character references: {list(char_refs.keys())}")
+    return characters, char_refs
+
 @click.group()
 def cli():
     """AI Anime Production Pipeline"""
@@ -75,6 +105,13 @@ def run(config: str, story: str, style_refs: str):
         
     ep_data = cfg.get("episode", {})
     chars_data = cfg.get("characters", [])
+    
+    # Load character references from manifest
+    manifest_chars, char_refs = load_character_refs()
+    if manifest_chars:
+        # Merge manifest characters with config characters
+        chars_data = [c.model_dump() if hasattr(c, 'model_dump') else c for c in manifest_chars]
+        logger.info(f"Using {len(manifest_chars)} characters from manifest")
     
     # Visual Style Analysis (Phase 3)
     refs_list = [r.strip() for r in style_refs.split(",")] if style_refs else []
@@ -106,7 +143,7 @@ def run(config: str, story: str, style_refs: str):
     episode.scenes = prompt_writer.write_prompts(episode.scenes, episode.characters)
     save_state(storage, episode, state_file)
     
-    kf_gen = KeyframeGenerator(gcp_client, cfg)
+    kf_gen = KeyframeGenerator(gcp_client, cfg, character_refs=char_refs)
     for scene in episode.scenes:
         for shot in scene.shots:
             kf_gen.generate(shot)
