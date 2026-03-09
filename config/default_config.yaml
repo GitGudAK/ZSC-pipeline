@@ -36,29 +36,35 @@ episode:
 
 # Style — matches "Felix - Official Teaser" visual language
 style:
-  guide: "Dark painterly anime style. Heavy ink-like outlines with variable weight. Muted earth-tone palette — deep browns, weathered bronze, burgundy reds, dusty ochre. Dramatic chiaroscuro lighting with warm torch/candle glows against deep shadows. Textured brush strokes visible in backgrounds, cel-shaded characters with soft gradient shading. Cinematic composition, moody atmosphere, rain and particle effects. Gritty realism within anime proportions. NO bright saturated colors, NO clean modern aesthetics."
+  guide: "Dark painterly anime style. Heavy ink-like outlines with variable weight. Muted earth-tone palette — deep browns, weathered bronze, burgundy reds, dusty ochre. Dramatic chiaroscuro lighting with warm torch/candle glows against deep shadows. Textured brush strokes visible in backgrounds, cel-shaded characters with soft gradient shading. Cinematic composition, moody atmosphere, rain and particle effects. Gritty realism within anime proportions. Inspired by Vinland Saga, Berserk (1997), and Mushishi. NO bright saturated colors, NO clean modern aesthetics."
   setting: "Roman Republic, 1st century BC. Mediterranean stone architecture — arches, columns, cobblestone streets, dusty roads. Characters wear togas, leather armor (lorica), sandals. Olive groves, temple ruins, torchlit interiors. Ancient world — no modern elements whatsoever."
-  negative_prompt: "photorealistic, 3D render, western cartoon, blurry, low quality, modern architecture, neon colors, bright saturated colors, clean lines, flat shading, dismembered, severed limbs, floating heads, detached body parts, anatomical errors, deformed anatomy, extra limbs, missing limbs"
+  negative_prompt: "photorealistic, 3D render, western cartoon, blurry, low quality, modern architecture, neon colors, bright saturated colors, clean lines, flat shading, dismembered, severed limbs, floating heads, detached body parts, anatomical errors, deformed anatomy, extra limbs, missing limbs, CGI, plastic looking, smooth digital art, generic AI art, stock photo, watermark"
 
 # Generation settings
 generation:
   keyframe:
-    provider: "fal"  # "vertex" (Gemini, free with subscription) or "fal" (fal.ai, costs per image)
+    provider: "fal"  # "vertex" (Gemini image output) or "fal" (fal.ai)
+    fal_model: "fal-ai/google/nano-banana-2"  # Default: Nano Banana 2. Alt: "fal-ai/flux-pro/v1.1"
     batch_size: 10
     retry_count: 3
   video:
-    provider: "veo"  # "veo" or "hailuo"
+    provider: "hailuo"  # "hailuo" (Hailuo 2.3 Pro on fal.ai) or "veo" (Veo 2 on fal.ai)
+    hailuo_model: "fal-ai/minimax/hailuo-2.3/pro/image-to-video"
     use_scene_extension: true
     use_reference_images: true
     max_reference_images: 3
+    default_duration: "6"  # seconds (Hailuo 2.3: 6s or 10s)
     batch_size: 5
     retry_count: 3
   rate_limits:
-    # Google AI Ultra tier — highest rate limits available
-    # These are generous defaults; adjust based on actual Ultra quotas
     veo_requests_per_minute: 15
     imagen_requests_per_minute: 30
     gemini_requests_per_minute: 60
+
+# Assembly
+assembly:
+  use_transitions: true
+  crossfade_seconds: 0.5  # Crossfade duration at scene boundaries
 
 # Audio
 audio:
@@ -76,9 +82,9 @@ quality:
   human_review_threshold: 0.8  # Below this, flag for human review
   max_regeneration_attempts: 3
 
-# Hailuo (optional)
+# Hailuo 2.3 (primary video provider via fal.ai)
 hailuo:
-  enabled: false
-  api_key: "${HAILUO_API_KEY}"
+  enabled: true
   model: "hailuo-2.3"
-  use_for_tags: ["action", "fight", "dance", "highly_stylized"]
+  resolution: "1080P"
+  use_for_tags: ["action", "fight", "dance", "highly_stylized", "anime"]

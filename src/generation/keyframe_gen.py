@@ -46,8 +46,21 @@ class KeyframeGenerator:
         else:
             self.provider = self.PROVIDER_VERTEX  # default: use Google subscription
         
-        # Vertex AI model for image generation
-        self.vertex_model = "gemini-2.5-flash-image-preview"
+        # Vertex AI model for image generation (Gemini with image output)
+        self.vertex_model = config.get("gcp", {}).get("fallback_models", {}).get(
+            "nano_banana", "gemini-2.5-flash-preview-04-17"
+        )
+        
+        # fal.ai model selection for keyframes — supports per-shot override
+        self.fal_image_model = config.get("generation", {}).get("keyframe", {}).get(
+            "fal_model", "fal-ai/flux-pro/v1.1"
+        )
+        
+        # Available fal.ai image models for UI selection
+        self.FAL_MODELS = {
+            "flux": "fal-ai/flux-pro/v1.1",
+            "nano_banana_2": "fal-ai/google/nano-banana-2",
+        }
         
     def _load_character_image(self, char_name: str) -> Optional[Image.Image]:
         """Load a character reference as a PIL Image for Vertex AI."""
@@ -103,33 +116,44 @@ class KeyframeGenerator:
     # Public API
     # =====================================================================
     
-    def generate_pair(self, shot: Shot) -> tuple:
-        """Generate both start and end keyframes for a shot."""
+    def generate_pair(self, shot: Shot, model_override: str = None) -> tuple:
+        """Generate both start and end keyframes for a shot.
+        
+        Args:
+            shot: The shot to generate keyframes for.
+            model_override: Optional model key ("flux" or "nano_banana_2") to override config.
+        """
         if not shot.image_prompt:
             logger.warning(f"Shot {shot.id} has no image_prompt. Skipping pair.")
             return shot.keyframe_path, shot.keyframe_end_path
         
+        # Resolve per-shot model override
+        effective_model = self.fal_image_model
+        if model_override and model_override in self.FAL_MODELS:
+            effective_model = self.FAL_MODELS[model_override]
+            logger.info(f"Shot {shot.id} using model override: {model_override} → {effective_model}")
+        
         # Generate start frame
         logger.info(f"Generating START keyframe for shot {shot.id} (provider: {self.provider})...")
-        start_path = self._generate_single(shot, shot.image_prompt, f"keyframes/{shot.id}_start.jpg")
+        start_path = self._generate_single(shot, shot.image_prompt, f"keyframes/{shot.id}_start.jpg", fal_model=effective_model)
         if start_path:
             shot.keyframe_path = start_path
         
         # Generate end frame
         if shot.image_prompt_end:
             logger.info(f"Generating END keyframe for shot {shot.id} (provider: {self.provider})...")
-            end_path = self._generate_single(shot, shot.image_prompt_end, f"keyframes/{shot.id}_end.jpg")
+            end_path = self._generate_single(shot, shot.image_prompt_end, f"keyframes/{shot.id}_end.jpg", fal_model=effective_model)
             if end_path:
                 shot.keyframe_end_path = end_path
         
         return shot.keyframe_path, shot.keyframe_end_path
 
-    def _generate_single(self, shot: Shot, prompt: str, filename: str) -> Optional[str]:
+    def _generate_single(self, shot: Shot, prompt: str, filename: str, fal_model: str = None) -> Optional[str]:
         """Route to the configured provider."""
         if self.provider == self.PROVIDER_VERTEX:
             return self._generate_vertex(shot, prompt, filename)
         else:
-            return self._generate_fal(shot, prompt, filename)
+            return self._generate_fal(shot, prompt, filename, fal_model_override=fal_model)
 
     # =====================================================================
     # PRIMARY: Vertex AI (Gemini) — uses Google subscription, no extra cost
@@ -203,8 +227,8 @@ class KeyframeGenerator:
     # FALLBACK: fal.ai (nano-banana-2) — requires FAL_KEY, costs per image
     # =====================================================================
     
-    def _generate_fal(self, shot: Shot, prompt: str, filename: str) -> Optional[str]:
-        """Generate keyframe using fal.ai nano-banana-2.
+    def _generate_fal(self, shot: Shot, prompt: str, filename: str, fal_model_override: str = None) -> Optional[str]:
+        """Generate keyframe using fal.ai (Nano Banana 2 or FLUX).
         
         Uses /edit endpoint with image_urls when character refs exist.
         Falls back to standard text-to-image otherwise.
@@ -218,10 +242,12 @@ class KeyframeGenerator:
         
         char_image_uris = self._collect_character_uris(shot)
         
+        # Use per-shot model override or default
+        base_model = fal_model_override or self.fal_image_model
         if char_image_uris:
-            model = "fal-ai/nano-banana-2/edit"
+            model = f"{base_model}/edit" if "/edit" not in base_model else base_model
         else:
-            model = "fal-ai/nano-banana-2"
+            model = base_model
         
         for attempt in range(1, self.max_retries + 1):
             try:

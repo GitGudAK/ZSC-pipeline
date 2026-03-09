@@ -68,8 +68,9 @@ def load_character_refs() -> dict:
 @click.option("--shot-id", default=None, help="Regenerate a single shot by ID")
 @click.option("--prompt", default=None, help="Override start-frame prompt")
 @click.option("--prompt-end", default=None, help="Override end-frame prompt")
+@click.option("--image-model", default=None, help="Image model override: 'flux' or 'nano_banana_2'")
 @click.option("--all", "gen_all", is_flag=True, help="Generate keyframes for ALL shots")
-def main(config: str, shot_id: str, prompt: str, prompt_end: str, gen_all: bool):
+def main(config: str, shot_id: str, prompt: str, prompt_end: str, image_model: str, gen_all: bool):
     cfg = load_config(config)
     state_file = cfg.get("pipeline", {}).get("state_file", "output/pipeline_state.json")
     storage = StorageManager(cfg)
@@ -92,7 +93,7 @@ def main(config: str, shot_id: str, prompt: str, prompt_end: str, gen_all: bool)
             for shot in scene.shots:
                 if shot.image_prompt:
                     logger.info(f"Generating keyframes for {shot.id}...")
-                    kf_gen.generate_pair(shot)
+                    kf_gen.generate_pair(shot, model_override=image_model)
                     storage.write_json(episode.model_dump(mode='json'), state_file)
                     total += 1
         logger.info(f"Generated keyframes for {total} shots.")
@@ -115,8 +116,8 @@ def main(config: str, shot_id: str, prompt: str, prompt_end: str, gen_all: bool)
         if prompt_end:
             target.image_prompt_end = prompt_end
 
-        logger.info(f"Regenerating keyframes for {shot_id}...")
-        kf_gen.generate_pair(target)
+        logger.info(f"Regenerating keyframes for {shot_id} (model: {image_model or 'default'})...")
+        kf_gen.generate_pair(target, model_override=image_model)
         storage.write_json(episode.model_dump(mode='json'), state_file)
         logger.info(f"Done. Keyframe saved for {shot_id}.")
 

@@ -3,12 +3,12 @@ import { existsSync } from 'fs';
 import { readFile, writeFile } from 'fs/promises';
 import { exec } from 'child_process';
 
-const PROJECT_ROOT = '/Users/ashwink/Desktop/ZSC-pipeline';
-const STATE_FILE = `${PROJECT_ROOT}/output/pipeline_state.json`;
+import { PROJECT_ROOT, PIPELINE_STATE_FILE, buildShellPrefix } from '@/lib/paths';
+const STATE_FILE = PIPELINE_STATE_FILE;
 
 export async function POST(request: Request) {
     try {
-        const { shot_id, image_prompt, image_prompt_end } = await request.json();
+        const { shot_id, image_prompt, image_prompt_end, image_model } = await request.json();
 
         if (!shot_id) {
             return NextResponse.json({ success: false, error: 'shot_id required' }, { status: 400 });
@@ -45,8 +45,9 @@ export async function POST(request: Request) {
         // Build CLI command for single-shot regeneration
         const promptArg = image_prompt ? `--prompt '${image_prompt.replace(/'/g, "'\\''")}'` : '';
         const promptEndArg = image_prompt_end ? `--prompt-end '${image_prompt_end.replace(/'/g, "'\\''")}'` : '';
+        const modelArg = image_model ? `--image-model ${image_model}` : '';
 
-        const cmd = `cd ${PROJECT_ROOT} && set -a && source .env && set +a && export GCP_PROJECT_ID=gen-lang-client-0655380841 && source .venv/bin/activate || true && python -m src.generation.generate_single --config config/default_config.yaml --shot-id ${shot_id} ${promptArg} ${promptEndArg} > /tmp/pipeline_regen.log 2>&1 &`;
+        const cmd = `${buildShellPrefix()} && python -m src.generation.generate_single --config config/default_config.yaml --shot-id ${shot_id} ${promptArg} ${promptEndArg} ${modelArg} > /tmp/pipeline_regen.log 2>&1 &`;
 
         console.log(`Regenerating keyframe for ${shot_id}...`);
         exec(cmd, (error) => {
