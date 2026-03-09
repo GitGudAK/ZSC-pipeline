@@ -3,3 +3,4 @@
 {shot_description}
 Camera Movement: {camera_movement}
 Shot Type: {shot_type}
+Animation style: Anime, cel-shaded, painterly. Smooth deliberate motion with anime timing — hold on dramatic beats, fluid secondary motion on hair and cloth.

@@ -4,7 +4,7 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { exec } from 'child_process';
 
-const PIPELINE_STATE_FILE = '/Users/ashwink/Desktop/ZSC-pipeline/output/pipeline_state.json';
+import { PIPELINE_STATE_FILE, PROJECT_ROOT, buildShellPrefix } from '@/lib/paths';
 
 export async function POST(request: Request) {
     try {
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
         const settingArgs = styleSetting ? `--style-setting '${escSetting}'` : '';
 
         // Execute the CLI in the background
-        const cmd = `cd /Users/ashwink/Desktop/ZSC-pipeline && set -a && source .env && set +a && export GCP_PROJECT_ID=gen-lang-client-0655380841 && source .venv/bin/activate || true && python -m src.main run --config config/example_episode.yaml --story ${storyFilePath} ${styleRefsArg} ${styleArgs} ${settingArgs} > /tmp/pipeline_run.log 2>&1 &`;
+        const cmd = `${buildShellPrefix()} && python -m src.main run --config config/example_episode.yaml --story ${storyFilePath} ${styleRefsArg} ${styleArgs} ${settingArgs} > /tmp/pipeline_run.log 2>&1 &`;
 
         exec(cmd, (error, stdout, stderr) => {
             if (error) console.error("CLI exec error", error);

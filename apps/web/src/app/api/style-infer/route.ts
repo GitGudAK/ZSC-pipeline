@@ -3,7 +3,7 @@ import { readFile, readdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 
-const CHARACTERS_DIR = '/Users/ashwink/Desktop/ZSC-pipeline/output/characters';
+import { CHARACTERS_DIR, PROJECT_ROOT } from '@/lib/paths';
 
 export async function POST(request: Request) {
     try {
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
             for (const char of manifest) {
                 charDescriptions.push(`${char.name}: ${char.description}`);
                 const imgPath = char.imagePath?.startsWith('./')
-                    ? join('/Users/ashwink/Desktop/ZSC-pipeline', char.imagePath.slice(2))
+                    ? join(PROJECT_ROOT, char.imagePath.slice(2))
                     : char.imagePath;
                 if (imgPath && existsSync(imgPath)) {
                     const imgBuf = await readFile(imgPath);
@@ -96,7 +96,7 @@ ${story.substring(0, 8000)}`;
         ];
 
         const { GoogleGenAI } = await import('@google/genai');
-        const ai = new GoogleGenAI({ vertexai: true, project: 'gen-lang-client-0655380841', location: 'us-central1' });
+        const ai = new GoogleGenAI({ vertexai: true, project: process.env.GCP_PROJECT_ID || '', location: process.env.GCP_REGION || 'us-central1' });
 
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',

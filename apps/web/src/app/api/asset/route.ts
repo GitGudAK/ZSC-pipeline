@@ -3,7 +3,7 @@ import { readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
 
-const PROJECT_ROOT = '/Users/ashwink/Desktop/ZSC-pipeline';
+import { PROJECT_ROOT, OUTPUT_DIR } from '@/lib/paths';
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);

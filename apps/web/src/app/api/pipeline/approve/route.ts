@@ -3,8 +3,8 @@ import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { exec } from 'child_process';
 
-const PROJECT_ROOT = '/Users/ashwink/Desktop/ZSC-pipeline';
-const STATE_FILE = `${PROJECT_ROOT}/output/pipeline_state.json`;
+import { PROJECT_ROOT, PIPELINE_STATE_FILE as STATE_FILE_PATH, buildShellPrefix } from '@/lib/paths';
+const STATE_FILE = STATE_FILE_PATH;
 
 export async function POST() {
     try {
@@ -24,7 +24,7 @@ export async function POST() {
         if (hasPromptsNoKeyframes) {
             // Phase 1: Generate all keyframes
             console.log('Generating keyframes for all shots...');
-            const cmd = `cd ${PROJECT_ROOT} && set -a && source .env && set +a && export GCP_PROJECT_ID=gen-lang-client-0655380841 && source .venv/bin/activate || true && python -m src.generation.generate_single --config config/default_config.yaml --all > /tmp/pipeline_keyframes.log 2>&1 &`;
+            const cmd = `${buildShellPrefix()} && python -m src.generation.generate_single --config config/default_config.yaml --all > /tmp/pipeline_keyframes.log 2>&1 &`;
 
             exec(cmd, (error) => {
                 if (error) console.error('Keyframe gen exec error:', error);
@@ -39,7 +39,7 @@ export async function POST() {
         } else if (hasKeyframesNoClips) {
             // Phase 2: Generate videos (existing behavior)
             console.log('Approve & Generate Video: Triggering resume pipeline...');
-            const cmd = `cd ${PROJECT_ROOT} && set -a && source .env && set +a && export GCP_PROJECT_ID=gen-lang-client-0655380841 && source .venv/bin/activate || true && python -m src.main resume --config config/default_config.yaml > /tmp/pipeline_resume.log 2>&1 &`;
+            const cmd = `${buildShellPrefix()} && python -m src.main resume --config config/default_config.yaml > /tmp/pipeline_resume.log 2>&1 &`;
 
             exec(cmd, (error) => {
                 if (error) console.error('Resume exec error:', error);

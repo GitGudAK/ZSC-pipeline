@@ -3,9 +3,9 @@ import { writeFile, mkdir, readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 
-const PROJECT_ROOT = '/Users/ashwink/Desktop/ZSC-pipeline';
-const CHARS_DIR = join(PROJECT_ROOT, 'output', 'characters');
-const MANIFEST_PATH = join(CHARS_DIR, 'manifest.json');
+import { PROJECT_ROOT, CHARACTERS_DIR, MANIFEST_PATH } from '@/lib/paths';
+
+const CHARS_DIR = CHARACTERS_DIR;
 
 // POST — Generate a character image from description + style guide
 export async function POST(request: Request) {

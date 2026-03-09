@@ -172,7 +172,24 @@ def resume(config: str):
         logger.error("No pipeline state found. Run the full pipeline first.")
         return
     
-    # Generate videos only for shots that have keyframes but no clips
+    # Load character references
+    _, char_refs = load_character_refs()
+    
+    # Phase 1: Generate keyframes for shots that have prompts but no keyframes
+    from src.generation.keyframe_gen import KeyframeGenerator
+    kf_gen = KeyframeGenerator(gcp_client, cfg, character_refs=char_refs)
+    keyframes_generated = 0
+    for scene in episode.scenes:
+        for shot in scene.shots:
+            if shot.image_prompt and not shot.keyframe_path:
+                logger.info(f"Generating keyframe for shot {shot.id}...")
+                kf_gen.generate_pair(shot)
+                save_state(storage, episode, state_file)
+                keyframes_generated += 1
+    if keyframes_generated > 0:
+        logger.info(f"Generated {keyframes_generated} keyframes.")
+    
+    # Phase 2: Generate videos for shots that have keyframes but no clips
     vid_gen = VideoGenerator(gcp_client, cfg)
     for scene in episode.scenes:
         for shot in scene.shots:
