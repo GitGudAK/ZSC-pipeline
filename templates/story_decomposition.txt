@@ -31,6 +31,28 @@ RULES:
    - Include lighting direction and quality
    - Specify foreground/midground/background elements
 
+CRITICAL — START AND END FRAME VISUALS:
+For EVERY shot, you MUST provide two distinct visual descriptions:
+
+  "start_visual": A concrete, paintable description of what the FIRST FRAME of this shot looks like.
+  "end_visual": A concrete, paintable description of what the LAST FRAME of this shot looks like.
+
+These must be different from each other and reflect the motion/camera/action that occurs during the shot.
+Think of them as two distinct still images that an animator would draw as keyframes.
+
+Examples of good start_visual / end_visual pairs:
+- Pan across battlefield: start_visual="Wide shot of muddy battlefield from the left, scattered shields and broken spears in foreground, distant burning siege towers under overcast sky" / end_visual="Wide shot continuing rightward, revealing a lone figure standing atop a hill silhouetted against firelight, bodies strewn across the slope"
+- Character reaction close-up: start_visual="Close-up of Sulla's face, eyes wide with shock, torchlight flickering on his left cheek, dark stone wall behind" / end_visual="Same framing, but Sulla's expression has hardened into cold resolve, jaw clenched, eyes narrowed, the torchlight now casting deeper shadows"
+- Walking shot: start_visual="Medium shot of Marius walking through a narrow Roman street, morning sunlight filtering through hanging laundry above, market stalls on either side" / end_visual="Marius has reached the end of the street, stepping into a sunlit forum plaza, the columns of a temple visible ahead"
+
+NARRATIVE CONTEXT:
+For EVERY shot, also provide:
+  "narrative_before": One sentence summarizing what just happened in the story before this shot.
+  "narrative_after": One sentence summarizing what happens next in the story after this shot.
+
+For the first shot, narrative_before should set the stage. For the last shot, narrative_after should hint at what follows.
+This context helps maintain visual continuity between adjacent shots.
+
 OUTPUT FORMAT:
 Return valid JSON matching this schema:
 {json_schema}

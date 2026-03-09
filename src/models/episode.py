@@ -24,6 +24,13 @@ class Shot(BaseModel):
     time_of_day: str                    
     transition_in: str                  
     transition_out: str                 
+    # Visual narrative: what the camera SEES at the start vs end of this shot
+    start_visual: Optional[str] = None  # Concrete visual description of the first frame
+    end_visual: Optional[str] = None    # Concrete visual description of the final frame
+    # Narrative context: what surrounds this shot in the story
+    narrative_before: Optional[str] = None  # 1-sentence summary of what just happened
+    narrative_after: Optional[str] = None   # 1-sentence summary of what happens next
+    # Generated prompts (written by prompt_writer, not by decomposer)
     image_prompt: Optional[str] = None  
     video_prompt: Optional[str] = None  
     keyframe_path: Optional[str] = None 

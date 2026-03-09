@@ -16,6 +16,9 @@ export default function Storyboard() {
     const [editEndPrompt, setEditEndPrompt] = useState('');
     const [isRegenerating, setIsRegenerating] = useState(false);
     const [regenMessage, setRegenMessage] = useState('');
+    
+    // Per-shot model selection
+    const [selectedImageModel, setSelectedImageModel] = useState<'flux' | 'nano_banana_2'>('nano_banana_2');
 
     useEffect(() => {
         const fetchPipeline = () => {
@@ -67,6 +70,7 @@ export default function Storyboard() {
                     shot_id: viewingShot.id,
                     image_prompt: editStartPrompt,
                     image_prompt_end: editEndPrompt,
+                    image_model: selectedImageModel,
                 }),
             });
             const data = await res.json();
@@ -357,6 +361,50 @@ export default function Storyboard() {
                         <div className="px-6 py-5 space-y-4 border-t border-white/10">
                             <p className="text-sm text-gray-200 leading-relaxed">{viewingShot.description}</p>
 
+                            {/* Narrative Context */}
+                            {(viewingShot.narrative_before || viewingShot.narrative_after) && (
+                                <div className="flex gap-3">
+                                    {viewingShot.narrative_before && (
+                                        <div className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                                            <span className="text-[10px] font-semibold uppercase tracking-wider text-white/30 block mb-1">Before</span>
+                                            <p className="text-xs text-white/60 leading-relaxed">{viewingShot.narrative_before}</p>
+                                        </div>
+                                    )}
+                                    {viewingShot.narrative_after && (
+                                        <div className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                                            <span className="text-[10px] font-semibold uppercase tracking-wider text-white/30 block mb-1">After</span>
+                                            <p className="text-xs text-white/60 leading-relaxed">{viewingShot.narrative_after}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Visual Narrative: Start → End */}
+                            {(viewingShot.start_visual || viewingShot.end_visual) && (
+                                <div className="space-y-2">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-primary/60">Visual Narrative</span>
+                                    <div className="flex gap-3 items-stretch">
+                                        {viewingShot.start_visual && (
+                                            <div className="flex-1 bg-primary/5 border border-primary/20 rounded-lg px-3 py-2">
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-primary/50 block mb-1">Start Frame</span>
+                                                <p className="text-xs text-white/70 leading-relaxed">{viewingShot.start_visual}</p>
+                                            </div>
+                                        )}
+                                        {viewingShot.start_visual && viewingShot.end_visual && (
+                                            <div className="flex items-center px-1">
+                                                <ArrowRight className="w-4 h-4 text-primary/40" />
+                                            </div>
+                                        )}
+                                        {viewingShot.end_visual && (
+                                            <div className="flex-1 bg-primary/5 border border-primary/20 rounded-lg px-3 py-2">
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-primary/50 block mb-1">End Frame</span>
+                                                <p className="text-xs text-white/70 leading-relaxed">{viewingShot.end_visual}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="flex flex-wrap gap-3">
                                 <span className="text-xs px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white/70">
                                     <Play className="w-3 h-3 inline mr-1.5 -mt-0.5" />{viewingShot.duration_seconds}s
@@ -397,6 +445,37 @@ export default function Storyboard() {
                                 <PenTool className="w-3.5 h-3.5" />
                                 Image Generation Prompts
                             </h4>
+
+                            {/* Model Selector */}
+                            <div className="space-y-2">
+                                <label className="text-[11px] font-medium uppercase tracking-wider text-white/40">Image Model</label>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setSelectedImageModel('nano_banana_2')}
+                                        className={cn(
+                                            "flex-1 px-4 py-2.5 rounded-lg text-xs font-medium transition-all border",
+                                            selectedImageModel === 'nano_banana_2'
+                                                ? "bg-primary/20 border-primary/50 text-primary shadow-[0_0_12px_-3px_rgba(var(--primary),0.4)]"
+                                                : "bg-black/40 border-white/10 text-white/50 hover:text-white/70 hover:border-white/20"
+                                        )}
+                                    >
+                                        <span className="block font-semibold">Nano Banana 2</span>
+                                        <span className="block text-[10px] mt-0.5 opacity-60">Google · High quality ceiling</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedImageModel('flux')}
+                                        className={cn(
+                                            "flex-1 px-4 py-2.5 rounded-lg text-xs font-medium transition-all border",
+                                            selectedImageModel === 'flux'
+                                                ? "bg-primary/20 border-primary/50 text-primary shadow-[0_0_12px_-3px_rgba(var(--primary),0.4)]"
+                                                : "bg-black/40 border-white/10 text-white/50 hover:text-white/70 hover:border-white/20"
+                                        )}
+                                    >
+                                        <span className="block font-semibold">FLUX Pro</span>
+                                        <span className="block text-[10px] mt-0.5 opacity-60">Black Forest · Prompt adherence</span>
+                                    </button>
+                                </div>
+                            </div>
 
                             <div className="space-y-3">
                                 <div className="space-y-1.5">
